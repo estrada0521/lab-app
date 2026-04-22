@@ -2,7 +2,7 @@
 
 `samples/` は sample record の置き場です。
 
-- 各 sample は `samples/<sample_id>/` の 1 directory で管理します
+- 各 sample は `samples/<sample_id>/` の 1 directory で管理します（`sample_id` は `000001` のような 6桁ゼロ埋め数値）
 - sample の metadata は `metadata.json` に保存します
 - `sample_id` は folder 名を SoT とし、`metadata.json` に重複保存しません
 - human readable な表示名は `display_name` に持たせます

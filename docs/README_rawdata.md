@@ -2,7 +2,7 @@
 
 `rawdata/` は生データ record の置き場です。
 
-- 各 record は `rawdata/<rawdata_id>/` の 1 directory で管理します
+- 各 record は `rawdata/<rawdata_id>/` の 1 directory で管理します（`rawdata_id` は `000001` のような 6桁ゼロ埋め数値）
 - directory 配下には payload file と `metadata.json` を置きます
 - `rawdata_id` は folder 名を SoT とし、`metadata.json` には保存しません
 - human readable な名前は `metadata.json` の `display_name` に持たせます
@@ -14,10 +14,12 @@ GUI と pipeline が metadata 解決を始める起点は `rawdata/<rawdata_id>/
 
 少なくとも次を入れてください。
 
-- `material_id`
-- `sample_id`
-- `session_id`
+- `sample_id`（`samples/000001/` のような 6桁 ID を参照）
+- `session_id`（`exp/000001/` のような 6桁 ID を参照）
 - `measurement_type`
+- `display_name`
+
+`material_id` は任意項目です（`sample.metadata.json` から辿れる場合は省略可）。
 
 GUI 上の既定軸を与えたい場合は次も使えます。
 

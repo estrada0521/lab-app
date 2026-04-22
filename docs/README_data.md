@@ -2,10 +2,10 @@
 
 `data/` は calculator により生成された data record の置き場です。
 
-- 各 data は `data/<data_id>/` の 1 directory で管理します
+- 各 data は `data/<data_id>/` の 1 directory で管理します（`data_id` は `000001` のような 6桁ゼロ埋め数値）
 - 生成物の本体は通常 `csv` と `metadata.json` です
-- `data_id` は folder 名を SoT とします
-- `metadata.json` には self id ではなく、`rawdata_id` や `calculator` などの参照情報を保存します
+- `data_id` は folder 名を SoT とし、`metadata.json` には保存しません
+- `metadata.json` には `rawdata_id` や `calculator` などの参照情報を保存します
 
 ## GUI / pipeline 互換メモ
 

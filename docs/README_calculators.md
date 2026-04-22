@@ -1,8 +1,8 @@
 # Calculator 作成ガイド
 
-この文書は、`calculators/` 配下に置く calculator の役割、責務範囲、実装方針を定義するものです。
+この文書は、DB の `calculators/` 配下に置く calculator の役割、責務範囲、実装方針を定義するものです。
 
-この repository で calculator を追加・修正する agent / developer 向けに書かれています。
+**calculator の追加・修正は `~/workspace/lab-app` repo から行います。** `pipeline/datagen/` が calculator を読み込んで実行します。
 
 ---
 
@@ -347,10 +347,12 @@ fallback による値解決自体は許容されますが、fallback rule は決
 各 calculator は `data/` 配下に次の形で 1 つの出力 directory を作ります。
 
 ```text
-data/<name>/
-├── <name>.csv
+data/<data_id>/
+├── <data_id>.csv
 └── metadata.json
 ```
+
+`data_id` は `000001` のような 6桁ゼロ埋め数値です（lab-app pipeline が自動採番します）。
 
 CSV は次を含むべきです。
 
@@ -407,7 +409,7 @@ metadata には、その CSV がどう生成されたかを理解するのに十
 
 この文書はそれとは別です。
 
-この file は、この repository で calculator をどう作るかを定義するものです。
+この file は、lab-app repo で calculator をどう作るかを定義するものです。
 個別 calculator の `README.md` は、その calculator 自身が何をするかを定義するものです。
 
 ---
