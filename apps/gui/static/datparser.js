@@ -445,8 +445,8 @@
       setSelectOptions(materialFilterSelect, [["", "all materials"], ...materials.map(value => [value, value])]);
       setSelectOptions(measurementFilterSelect, [["", "all types"], ...measurements.map(value => [value, value])]);
       setSelectOptions(timeFilterSelect, [["", "all dependances"], ...dependances.map(value => [value, value])]);
-      if (sampleFilterSelect) setSelectOptions(sampleFilterSelect, [["", "all samples"], ...samples.map(value => [value, value])]);
-      if (sessionFilterSelect) setSelectOptions(sessionFilterSelect, [["", "all sessions"], ...sessions.map(value => [value, value])]);
+      if (sampleFilterSelect) setSelectOptions(sampleFilterSelect, [["", "all samples"], ...samples.map(id => [id, samplesIndex[id] ? `${samplesIndex[id]} (${id})` : id])]);
+      if (sessionFilterSelect) setSelectOptions(sessionFilterSelect, [["", "all sessions"], ...sessions.map(id => [id, sessionsIndex[id] ? `${sessionsIndex[id]} (${id})` : id])]);
     }
 
     function updateBrowserFiles(options = {}) {
