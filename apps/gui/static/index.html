@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lab</title>
+  <link rel="stylesheet" href="/static/datparser.css?v=__STATIC_VERSION__">
+  <link rel="stylesheet" href="/static/datagen.css?v=__STATIC_VERSION__">
+</head>
+  <body class="workspace-page selected-rawdata" data-page="workspace" data-side-panel="info">
+  <main id="workspaceMain">
+      <aside class="browser-pane" aria-label="Data browser">
+        <div class="browser-topline">
+          <div class="page-menu-wrap">
+            <button class="page-menu-btn" id="pageMenuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="pageMenuPopover">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2.5 4H13.5"/><path d="M2.5 8H13.5"/><path d="M2.5 12H13.5"/></svg>
+            </button>
+            <div class="page-menu-popover" id="pageMenuPopover" hidden>
+              <a class="page-menu-link current" href="/">Workspace</a>
+              <a class="page-menu-link" href="/samples/">Samples</a>
+              <a class="page-menu-link" href="/calculators/">Calculators</a>
+              <a class="page-menu-link" href="/experiments/">Experiments</a>
+              <a class="page-menu-link" href="/analysis/">Analysis</a>
+            </div>
+          </div>
+          <div class="browser-target-toggle" role="group" aria-label="Browse target">
+            <button class="browser-target-btn active" id="browserTargetRawBtn" type="button">Raw data</button>
+            <button class="browser-target-btn" id="browserTargetDataBtn" type="button">Data</button>
+          </div>
+        </div>
+        <div class="browser-header">
+          <input id="browserSearch" type="search" placeholder="Search file / material / type / dependance…" autocomplete="off">
+          <button id="browserAdvancedBtn" class="browser-advanced-toggle icon-btn" type="button" title="Advanced filters" aria-expanded="false" aria-controls="browserAdvancedFilters">⋯</button>
+        </div>
+        <div class="browser-filter-grid">
+          <label for="materialFilterSelect">material</label>
+          <select id="materialFilterSelect"></select>
+          <label for="measurementFilterSelect">type</label>
+          <select id="measurementFilterSelect"></select>
+          <label for="timeFilterSelect">dependance</label>
+          <select id="timeFilterSelect"></select>
+        </div>
+        <div class="browser-advanced-filters" id="browserAdvancedFilters">
+          <div class="browser-filter-grid">
+            <label for="sampleFilterSelect">sample</label>
+            <select id="sampleFilterSelect"></select>
+            <label for="sessionFilterSelect">session</label>
+            <select id="sessionFilterSelect"></select>
+          </div>
+        </div>
+        <div class="browser-list" id="browserTree" tabindex="0"></div>
+      </aside>
+    <div class="pane-splitter" id="leftSplitter" aria-hidden="true"></div>
+
+    <section class="plot-section">
+      <div class="axis-row">
+        <div>
+          <label class="inline" for="xAxis">x</label>
+          <select id="xAxis"></select>
+        </div>
+        <div>
+          <label class="inline" for="yAxis">y</label>
+          <select id="yAxis"></select>
+        </div>
+        <label class="check-row compact" for="dualPlotInput">
+          <input id="dualPlotInput" type="checkbox">
+          2 panels
+        </label>
+        <div class="secondary-y" id="yAxis2Wrap">
+          <label class="inline" for="yAxis2">y2</label>
+          <select id="yAxis2"></select>
+        </div>
+      </div>
+
+      <div class="figure">
+        <canvas id="plot" class="plot-canvas" width="1200" height="720"></canvas>
+      </div>
+
+      <div class="toolbar" role="toolbar" aria-label="Plot toolbar">
+        <div class="tool-group">
+          <button class="tool-btn" id="homeBtn" title="Home (autoscale)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"><path d="M2 8 L8 2 L14 8"/><path d="M4 7 V14 H12 V7"/></svg>
+          </button>
+          <button class="tool-btn" id="backBtn" title="Back" disabled>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 L5 8 L10 13"/></svg>
+          </button>
+          <button class="tool-btn" id="forwardBtn" title="Forward" disabled>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3 L11 8 L6 13"/></svg>
+          </button>
+        </div>
+        <div class="sep"></div>
+        <div class="tool-group">
+          <button class="tool-btn" id="panBtn" title="Pan (drag to move)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1 V8"/><path d="M8 15 V8"/><path d="M1 8 H15"/><path d="M6 3 L8 1 L10 3"/><path d="M6 13 L8 15 L10 13"/><path d="M3 6 L1 8 L3 10"/><path d="M13 6 L15 8 L13 10"/></svg>
+          </button>
+          <button class="tool-btn active" id="zoomBtn" title="Zoom to rectangle (drag to select)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 L14 14"/><path d="M7 5 V9"/><path d="M5 7 H9"/></svg>
+          </button>
+        </div>
+        <div class="sep"></div>
+        <div class="tool-group">
+          <button class="tool-btn active" id="plotLineModeBtn" type="button" title="Line">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 11.5 L5.2 8.2 L8.2 9.6 L13.5 4.5"/><circle cx="2" cy="11.5" r="1"/><circle cx="5.2" cy="8.2" r="1"/><circle cx="8.2" cy="9.6" r="1"/><circle cx="13.5" cy="4.5" r="1"/></svg>
+          </button>
+          <button class="tool-btn" id="plotScatterModeBtn" type="button" title="Scatter">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="11.5" r="1.3"/><circle cx="6.5" cy="8" r="1.3"/><circle cx="9.4" cy="10.1" r="1.3"/><circle cx="13" cy="4.5" r="1.3"/></svg>
+          </button>
+          <button class="tool-btn" id="plotPlayBtn" type="button" title="Animate by timestamp">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.8v10.4L12.5 8 4 2.8Z"/></svg>
+          </button>
+          <button class="tool-btn" id="plotInfoExportBtn" type="button" title="Embed info on export" aria-pressed="false">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v4"/><path d="M8 4.6h.01"/></svg>
+          </button>
+          <button class="tool-btn" id="savePlotPngBtn" type="button" title="Export PNG">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="2.5" width="11.6" height="11" rx="1.8"/><path d="M5 10.5 L7.3 8.2 L9.2 10.1 L11 8.3"/><circle cx="5.2" cy="5.4" r="1"/></svg>
+          </button>
+          <button class="tool-btn" id="savePlotPdfBtn" type="button" title="Export PDF">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5 H9.5 L12.5 5.5 V13.5 H4 Z"/><path d="M9.5 2.5 V5.5 H12.5"/><path d="M5.2 11.2 H10.8"/><path d="M5.2 8.8 H10.8"/></svg>
+          </button>
+          <button class="tool-btn" id="plotColorsBtn" type="button" title="Line color">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.2a5.8 5.8 0 1 0 0 11.6c.9 0 1.6-.7 1.6-1.6 0-.4-.1-.8-.3-1.1-.2-.4-.3-.6-.3-.9 0-.7.6-1.3 1.3-1.3h.9A2.8 2.8 0 0 0 14 6.1C14 4 11.3 2.2 8 2.2Z"/><circle cx="5.1" cy="6.1" r=".7" fill="currentColor"/><circle cx="7.5" cy="4.8" r=".7" fill="currentColor"/><circle cx="10.1" cy="5.9" r=".7" fill="currentColor"/><circle cx="5.9" cy="8.9" r=".7" fill="currentColor"/></svg>
+          </button>
+          <input id="plotColorInput" class="visually-hidden-color" type="color" value="#111111" tabindex="-1" aria-hidden="true">
+          <button class="tool-btn plot-theme-btn" id="plotThemeToggleBtn" type="button" title="Graph theme" aria-pressed="false">
+            <span id="plotThemeToggleLabel">Dark</span>
+          </button>
+        </div>
+      </div>
+
+    </section>
+    <div class="pane-splitter" id="rightSplitter" aria-hidden="true"></div>
+
+    <section class="side-section">
+      <div class="side-header">
+        <select class="rawdata-only side-panel-select" id="sidePanelSelect" aria-label="Right panel section">
+          <option value="make">Make data</option>
+          <option value="info">Info</option>
+          <option value="json">JSON</option>
+          <option value="links">Links</option>
+        </select>
+        <select class="data-only side-panel-select" id="dataInfoPanelSelect" aria-label="Right panel section">
+          <option value="info">Info</option>
+          <option value="json">JSON</option>
+          <option value="links">Links</option>
+        </select>
+      </div>
+
+      <div class="side-panels">
+        <section class="side-panel data-generation-panel rawdata-only" data-panel="make">
+          <div class="field">
+            <label for="calculatorSelect">calculator</label>
+            <select id="calculatorSelect"></select>
+          </div>
+          <div class="calculator-status" id="calculatorStatus"></div>
+          <div class="meta-block parameter-block is-collapsed" id="parameterBlock">
+            <button class="parameter-toggle" id="parameterToggle" type="button" aria-expanded="false" aria-controls="boundParameters">
+              <span>parameters</span>
+              <span class="parameter-toggle-chevron" aria-hidden="true">›</span>
+            </button>
+            <div class="parameter-grid" id="boundParameters"></div>
+          </div>
+          <div class="output-columns-preview" id="outputColumnsPreview" hidden></div>
+          <div class="generate-row">
+            <label class="field compact generate-name-field" for="dataOutputName">
+              <span>data name</span>
+              <input id="dataOutputName" placeholder="same as source">
+            </label>
+            <label class="check-row compact continuous-mode-label" for="continuousModeInput" title="Stay on current file after generating (continuous mode)">
+              <input id="continuousModeInput" type="checkbox">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5a5.5 5.5 0 1 1 1.05 3.15"/><path d="M1 7.5h3v-3"/></svg>
+            </label>
+            <button class="generate-btn" id="generateDataBtn" type="button" aria-label="Generate data" title="Generate data">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8H11.5"/><path d="M8.5 4.8L11.7 8L8.5 11.2"/><path d="M13.5 3.2V12.8"/></svg>
+            </button>
+          </div>
+          <div class="columns-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="col-pin-th"></th>
+                  <th>
+                    <div class="column-head">
+                      <button class="column-preview-btn" id="previewFilterBtn" type="button" title="Preview filters on graph">
+                        <span aria-hidden="true"></span>
+                      </button>
+                      <span>column</span>
+                    </div>
+                  </th>
+                  <th class="col-range-th">
+                    <div class="range-head">
+                      <span>range</span>
+                      <div class="range-head-actions" id="rangeHeadActions"></div>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="columnsBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="side-panel data-info-panel is-active" data-panel="info">
+          <div class="data-info-grid rawdata-only" id="rawInfoGrid"></div>
+          <div class="data-info-grid data-only" id="dataInfoGrid"></div>
+          <div class="memo-panel">
+            <div class="rawmeta-header">
+              <label for="rawMemoInput">memo</label>
+              <span class="rawmeta-status" id="rawMemoStatus"></span>
+            </div>
+            <textarea id="rawMemoInput" rows="5" placeholder="free-form notes about the source rawdata file" disabled></textarea>
+            <div class="rawmeta-actions">
+              <button class="small-btn" id="rawMemoRevertBtn" disabled>Revert</button>
+              <button class="small-btn primary" id="rawMemoSaveBtn" disabled>Save memo</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="side-panel json-panel" data-panel="json">
+          <div class="json-panel-body rawdata-only" id="rawJsonPanel"></div>
+          <div class="json-panel-body data-only" id="dataJsonPanel"></div>
+        </section>
+
+        <section class="side-panel related-links-panel" data-panel="links">
+          <div class="related-links" id="workspaceRelatedLinks"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div class="footer">
+    <span class="status" id="status"></span>
+  </div>
+
+  <script src="/static/page_menu.js?v=__STATIC_VERSION__"></script>
+  <script src="/static/raw_memo.js?v=__STATIC_VERSION__"></script>
+  <script src="/static/pane_resize.js?v=__STATIC_VERSION__"></script>
+  <script src="/static/plot_animation.js?v=__STATIC_VERSION__"></script>
+  <script src="/static/plot_export.js?v=__STATIC_VERSION__"></script>
+  <script src="/static/datparser.js?v=__STATIC_VERSION__"></script>
+</body>
+</html>

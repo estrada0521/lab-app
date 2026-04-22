@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>__PAGE_TITLE__</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <link rel="stylesheet" href="/static/datparser.css?v=__STATIC_VERSION__">
+  <link rel="stylesheet" href="/static/datagen.css?v=__STATIC_VERSION__">
+</head>
+<body class="catalog-page records-page" data-page="__RECORD_KIND__">
+  <main class="catalog-main">
+    <aside class="catalog-pane catalog-list-pane">
+      <div class="catalog-pane-topline">
+        <div class="page-menu-wrap">
+          <button class="page-menu-btn" id="pageMenuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="pageMenuPopover">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2.5 4H13.5"/><path d="M2.5 8H13.5"/><path d="M2.5 12H13.5"/></svg>
+          </button>
+          <div class="page-menu-popover" id="pageMenuPopover" hidden>
+            <a class="page-menu-link" href="/">Workspace</a>
+            <a class="page-menu-link records-link-samples" href="/samples/">Samples</a>
+            <a class="page-menu-link" href="/calculators/">Calculators</a>
+            <a class="page-menu-link records-link-experiments" href="/experiments/">Experiments</a>
+            <a class="page-menu-link" href="/analysis/">Analysis</a>
+          </div>
+        </div>
+      </div>
+      <div class="record-filter-grid" id="recordFilterGrid">
+        <label for="ownerFilterSelect">owner</label>
+        <select id="ownerFilterSelect"><option value="">All</option></select>
+        <label for="materialFilterSelect">material</label>
+        <select id="materialFilterSelect"><option value="">All</option></select>
+        <label class="samples-only" for="orientationFilterSelect">orientation</label>
+        <select class="samples-only" id="orientationFilterSelect"><option value="">All</option></select>
+      </div>
+      <div class="catalog-list" id="recordList"></div>
+    </aside>
+    <div class="pane-splitter catalog-splitter" id="catalogLeftSplitter" aria-hidden="true"></div>
+
+    <section class="catalog-pane catalog-content-pane">
+      <div class="catalog-content-head">
+        <div class="catalog-content-title" id="recordTitle"></div>
+        <div class="catalog-content-meta" id="recordMeta"></div>
+      </div>
+      <div class="record-image-wrap" id="recordImageWrap" hidden>
+        <img class="record-main-image" id="recordMainImage" alt="">
+      </div>
+      <div class="readme-content markdown-body" id="recordReadme" hidden></div>
+    </section>
+    <div class="pane-splitter catalog-splitter" id="catalogRightSplitter" aria-hidden="true"></div>
+
+    <aside class="catalog-pane catalog-side-pane">
+      <div class="catalog-pane-topline">
+        <select class="side-panel-select" id="recordSidePanelSelect" aria-label="Right panel section">
+          <option value="info">Info</option>
+          <option value="json">JSON</option>
+          <option value="links">Links</option>
+        </select>
+      </div>
+      <div id="sideInfoPanel" class="data-info-panel">
+        <div class="catalog-key-grid" id="recordInfo"></div>
+        <div class="memo-panel">
+          <div class="memo-actions">
+            <button class="memo-btn" id="memoSaveBtn" disabled>Save</button>
+            <button class="memo-btn memo-btn-secondary" id="memoRevertBtn" disabled>Revert</button>
+            <span class="memo-status" id="memoStatus"></span>
+          </div>
+          <textarea class="memo-input" id="memoInput" placeholder="Quick notes…" disabled></textarea>
+        </div>
+      </div>
+      <div id="sideJsonPanel" hidden>
+        <div class="json-panel-body" id="recordJson"></div>
+      </div>
+      <div id="sideLinksPanel" hidden>
+        <div class="catalog-link-group">
+          <div class="catalog-link-block" id="rawdataLinkBlock">
+            <div class="catalog-link-label">RAWDATA</div>
+            <div class="catalog-link-list" id="recordRawdata"></div>
+          </div>
+          <div class="catalog-link-block" id="dataLinkBlock">
+            <div class="catalog-link-label">DATA</div>
+            <div class="catalog-link-list" id="recordData"></div>
+          </div>
+          <div class="catalog-link-block" id="experimentLinkBlock">
+            <div class="catalog-link-label">EXPERIMENT</div>
+            <div class="catalog-link-list" id="recordExperiments"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <div class="footer">
+    <span class="status" id="status"></span>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <script src="/static/markdown_render.js?v=__STATIC_VERSION__"></script>
+  <script src="/static/page_menu.js?v=__STATIC_VERSION__"></script>
+  <script src="/static/pane_resize.js?v=__STATIC_VERSION__"></script>
+  <script src="/static/records.js?v=__STATIC_VERSION__"></script>
+</body>
+</html>

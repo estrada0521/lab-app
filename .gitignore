@@ -1,0 +1,26 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Ignore data and experimental directories but allow their README.md
+DB/*
+!DB/README.md
+analysis/*
+!analysis/README.md
+data/*
+!data/README.md
+exp/*
+!exp/README.md
+rawdata/*
+!rawdata/README.md
+samples/*
+!samples/README.md
+
+# Ignore log and nohup files
+logs/
+nohup.out
+
+# Ignore calculators logic (only track README.md)
+calculators/*
+!calculators/README.md
