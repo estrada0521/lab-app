@@ -225,18 +225,26 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 self.send_static(parsed.path)
             elif parsed.path == "/api/raw-files":
                 raw_paths = core.discover_raw_files(self.server.db_root)
+                samples_idx = {e["id"]: e.get("display_name", e["id"]) for e in catalog.sample_entries(self.server.db_root)}
+                sessions_idx = {e["id"]: e.get("display_name", e["id"]) for e in catalog.experiment_entries(self.server.db_root)}
                 self.send_json(
                     {
                         "files": [core.relative_text(path, self.server.db_root) for path in raw_paths],
                         "entries": [catalog.raw_entry(self.server.db_root, path) for path in raw_paths],
+                        "samples_index": samples_idx,
+                        "sessions_index": sessions_idx,
                     }
                 )
             elif parsed.path == "/api/data-files":
                 data_paths = data_core.discover_data_files(self.server.db_root)
+                samples_idx = {e["id"]: e.get("display_name", e["id"]) for e in catalog.sample_entries(self.server.db_root)}
+                sessions_idx = {e["id"]: e.get("display_name", e["id"]) for e in catalog.experiment_entries(self.server.db_root)}
                 self.send_json(
                     {
                         "files": [core.relative_text(path, self.server.db_root) for path in data_paths],
                         "entries": [catalog.data_entry(self.server.db_root, path) for path in data_paths],
+                        "samples_index": samples_idx,
+                        "sessions_index": sessions_idx,
                     }
                 )
             elif parsed.path == "/api/samples":
@@ -512,7 +520,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 old_id = str(payload.get("old_id", ""))
                 new_id = str(payload.get("new_id", "")).strip()
                 new_name = str(payload.get("new_name", "")).strip()
-                if kind in {"rawdata", "sample", "exp"} and old_id and new_name:
+                if kind in {"rawdata", "data", "sample", "exp"} and old_id and new_name:
                     result = _update_record_display_name(self.server.db_root, kind, old_id, new_name)
                     status = HTTPStatus.OK if not result.get("error") else HTTPStatus.BAD_REQUEST
                     self.send_json(result, status)
@@ -594,6 +602,7 @@ def _iter_metadata_files(root: Path, *subdirs: str):
 def _update_record_display_name(root: Path, kind: str, record_id: str, display_name: str) -> dict:
     subdir = (
         "rawdata" if kind == "rawdata"
+        else "data" if kind == "data"
         else "samples" if kind == "sample"
         else "exp" if kind == "exp"
         else ""

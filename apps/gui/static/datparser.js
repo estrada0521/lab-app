@@ -70,7 +70,8 @@
     let historyIndex = -1;
     let currentKind = "rawdata";
     let workspaceFiles = [];
-    let rawFiles = [];
+    let samplesIndex = {};
+    let sessionsIndex = {};    let rawFiles = [];
     let generatedDataFiles = [];
     let currentDataSummary = null;
     let allCalculators = [];
@@ -270,7 +271,7 @@
     }
 
     function browserPrimaryLabel(item, entityId) {
-      if (item.kind === "rawdata") return item.display_name || entityId;
+      if (item.kind === "rawdata" || item.kind === "data") return item.display_name || entityId;
       return entityId;
     }
 
@@ -313,15 +314,9 @@
         row.dataset.path = item.path;
         const entityId = item.path.split("/")[1] || parts.file;
         const primaryLabel = browserPrimaryLabel(item, entityId);
-        const payloadFile = parts.file || "";
-        const payloadStem = payloadFile.replace(/\.[^.]+$/, "");
-        const payloadMeta = (item.kind === "rawdata" && payloadFile && payloadStem !== entityId) ? payloadFile : "";
-        const secondaryBits = item.kind === "rawdata"
-          ? [entityId, payloadMeta, parts.material, parts.measurement, parts.time]
-          : [payloadMeta, parts.material, parts.measurement, parts.time];
         row.innerHTML = `
           <div class="browser-file-name" title="Click again to rename">${escapeHtml(primaryLabel)}</div>
-          <div class="browser-file-meta">${escapeHtml(secondaryBits.filter(Boolean).join(" · "))}</div>
+          <div class="browser-file-meta">${escapeHtml(entityId)}</div>
         `;
         row.addEventListener("click", (e) => {
           if (row.classList.contains("current")) {
@@ -381,7 +376,7 @@
         const newValue = input.value.trim();
         if (!newValue || newValue === oldLabel) { renderBrowserList(); return; }
         try {
-          const body = item.kind === "rawdata"
+          const body = (item.kind === "rawdata" || item.kind === "data")
             ? {kind: item.kind, old_id: oldId, new_name: newValue}
             : {kind: item.kind, old_id: oldId, new_id: newValue};
           await apiJson("/api/rename", {
@@ -471,6 +466,8 @@
       rawFiles = rawPayload.files || [];
       generatedDataFiles = dataPayload.files || [];
       allCalculators = calculatorsPayload.calculators || [];
+      samplesIndex = rawPayload.samples_index || dataPayload.samples_index || {};
+      sessionsIndex = rawPayload.sessions_index || dataPayload.sessions_index || {};
       const rawEntries = rawPayload.entries || rawFiles.map(path => ({path, file: path.split("/").pop() || ""}));
       const dataEntries = dataPayload.entries || generatedDataFiles.map(path => ({path, file: path.split("/").pop() || ""}));
       workspaceFiles = [
@@ -740,12 +737,12 @@
           .filter(entry => entry.kind === "data" && entry.raw_source === currentPath)
           .map(entry => ({
             href: `/?path=${encodeURIComponent(entry.path)}`,
-            text: entry.file || entry.path.split("/").pop(),
-            sub: entry.path,
+            text: entry.display_name || entry.file || entry.path.split("/").pop(),
+            sub: entry.id || entry.path,
           }));
         const html = [
-          parts.sample && wsLinkBlock("SAMPLE", [{href: `/samples/?id=${encodeURIComponent(parts.sample)}`, text: parts.sample}]),
-          parts.session && wsLinkBlock("EXP", [{href: `/experiments/?id=${encodeURIComponent(parts.session)}`, text: parts.session}]),
+          parts.sample && wsLinkBlock("SAMPLE", [{href: `/samples/?id=${encodeURIComponent(parts.sample)}`, text: samplesIndex[parts.sample] || parts.sample, sub: parts.sample}]),
+          parts.session && wsLinkBlock("EXP", [{href: `/experiments/?id=${encodeURIComponent(parts.session)}`, text: sessionsIndex[parts.session] || parts.session, sub: parts.session}]),
           wsLinkBlock("DATA", dataItems),
         ].filter(Boolean).join("");
         workspaceRelatedLinks.innerHTML = html || '<div class="data-info-val">—</div>';
@@ -758,8 +755,8 @@
       const sampleId = meta?.sample_id || "";
       const sessionId = meta?.session_id || "";
       const html = [
-        sampleId && wsLinkBlock("SAMPLE", [{href: `/samples/?id=${encodeURIComponent(sampleId)}`, text: sampleId}]),
-        sessionId && wsLinkBlock("EXP", [{href: `/experiments/?id=${encodeURIComponent(sessionId)}`, text: sessionId}]),
+        sampleId && wsLinkBlock("SAMPLE", [{href: `/samples/?id=${encodeURIComponent(sampleId)}`, text: samplesIndex[sampleId] || sampleId, sub: sampleId}]),
+        sessionId && wsLinkBlock("EXP", [{href: `/experiments/?id=${encodeURIComponent(sessionId)}`, text: sessionsIndex[sessionId] || sessionId, sub: sessionId}]),
         rawSourcePath && wsLinkBlock("RAWDATA", [{
           href: `/?path=${encodeURIComponent(rawSourcePath)}`,
           text: workspaceFiles.find(e => e.path === rawSourcePath)?.display_name || rawSourcePath.split("/").pop(),

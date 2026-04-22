@@ -213,23 +213,34 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
         source_meta.get("exp"),
         _nested_value(source_meta, "source", "session_id"),
     )
-    if not material_id or not sample_id or not measurement_type or not session_id:
-        raise ValueError(
-            f"flat metadata must define material_id, sample_id, measurement_type, and session_id: {source_metadata_path(root, source_path)}"
+    sample_meta: dict[str, Any] = {}
+    sample_meta_path: Path | None = None
+    if sample_id:
+        sample_meta, sample_meta_path = _load_first_json(
+            _sample_meta_candidates(root, material_id, sample_id),
+            label="sample metadata",
+            required=False,
         )
 
-    material_meta, material_meta_path = _load_first_json(
-        _material_meta_candidates(root, material_id),
-        label="material metadata",
-    )
-    sample_meta, sample_meta_path = _load_first_json(
-        _sample_meta_candidates(root, material_id, sample_id),
-        label="sample metadata",
-    )
-    session_meta, session_meta_path = _load_first_json(
-        _session_meta_candidates(root, material_id, sample_id, measurement_type, session_id),
-        label="experiment metadata",
-    )
+    material_id = _first_text(material_id, sample_meta.get("material_id"))
+
+    material_meta: dict[str, Any] = {}
+    material_meta_path: Path | None = None
+    if material_id:
+        material_meta, material_meta_path = _load_first_json(
+            _material_meta_candidates(root, material_id),
+            label="material metadata",
+            required=False,
+        )
+
+    session_meta: dict[str, Any] = {}
+    session_meta_path: Path | None = None
+    if session_id:
+        session_meta, session_meta_path = _load_first_json(
+            _session_meta_candidates(root, material_id, sample_id, measurement_type, session_id),
+            label="experiment metadata",
+            required=False,
+        )
     if isinstance(source_meta.get("material"), dict):
         material_meta = _merge_metadata(material_meta, source_meta["material"])
     material_meta = _merge_metadata(material_meta, _top_level_overrides(source_meta, RAWDATA_MATERIAL_OVERRIDE_KEYS))
@@ -247,9 +258,9 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
     session_meta = _merge_metadata(session_meta, _top_level_overrides(source_meta, RAWDATA_SESSION_OVERRIDE_KEYS))
 
     filter_id = source_name or source_record_name(root, source_path) or source_path.stem
-    material_dir = (material_meta_path.parent if material_meta_path else root / FLAT_DB_DIR / FLAT_DB_MATERIALS_DIR / material_id)
-    sample_dir = root / FLAT_SAMPLES_DIR / sample_id
-    session_dir = root / FLAT_EXP_DIR / session_id
+    material_dir = material_meta_path.parent if material_meta_path else root / FLAT_DB_DIR / FLAT_DB_MATERIALS_DIR / material_id
+    sample_dir = sample_meta_path.parent if sample_meta_path else root / FLAT_SAMPLES_DIR / sample_id
+    session_dir = session_meta_path.parent if session_meta_path else root / FLAT_EXP_DIR / session_id
     return FilterContext(
         repo_root=root,
         source_path=source_path,
@@ -383,4 +394,3 @@ def read_filter_metadata(source_path: Path) -> dict[str, Any]:
 
 def experiment_date(session_id: str) -> str:
     return session_id.removeprefix("exp-") if session_id.startswith("exp-") else session_id
-

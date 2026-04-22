@@ -126,7 +126,7 @@ function renderList(items) {
     button.dataset.id = calculator.id;
     button.innerHTML = `
       <div class="catalog-list-name" title="Click again to rename">${escapeHtml(calculator.title || calculator.id)}</div>
-      <div class="catalog-list-meta">${escapeHtml([calculator.id, calculator.measurement_type].filter(Boolean).join(" · "))}</div>
+      <div class="catalog-list-meta">${escapeHtml(calculator.id)}</div>
     `;
     button.addEventListener("click", () => {
       if (button.classList.contains("current")) {

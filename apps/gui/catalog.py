@@ -68,60 +68,6 @@ def _session_date(session_id: str) -> str:
     return ""
 
 
-def _rawdata_detail(label: str) -> str:
-    """Return the condition suffix from a human-readable rawdata label."""
-    parts = label.split("__")
-    return parts[4] if len(parts) >= 5 else ""
-
-
-def _parse_dependance_fixed(measurement: str, suffix: str) -> tuple[str, str]:
-    """Derive (dependance, fixed) from measurement type and folder suffix.
-
-    Only handles magnetization for now; strain returns ("", "").
-    """
-    if measurement != "magnetization":
-        return "", ""
-
-    s = suffix.lower()
-
-    # ── Pressure-cell measurements ─────────────────────────────────────────
-    m_pa = re.match(r"(\d+)(mpa|pa)-", s)
-    if m_pa:
-        val = m_pa.group(1)
-        unit = "MPa" if m_pa.group(2) == "mpa" else "MPa"
-        return "temperature", f"pressure: {val}{unit}"
-
-    # ── mh (field sweep) ───────────────────────────────────────────────────
-    if s.startswith("mh-") or re.search(r"-mh-", s):
-        m_t = re.search(r"mh-(\d+)k", s)
-        fixed = f"temperature: {m_t.group(1)}K" if m_t else "temperature"
-        return "magnetic field", fixed
-
-    # ── mt / hpc temperature sweep ─────────────────────────────────────────
-    # Extract measuring field (Oe takes priority over T)
-    m_oe = re.search(r"(?:fc|zfc)-(neg)?(\d+)oe", s)
-    if m_oe:
-        sign = "-" if m_oe.group(1) else ""
-        return "temperature", f"magnetic field: {sign}{m_oe.group(2)}Oe"
-
-    m_t_after_fc = re.search(r"(?:fc|zfc)-(neg)?(\d+)t(?!\d)", s)
-    if m_t_after_fc:
-        sign = "-" if m_t_after_fc.group(1) else ""
-        return "temperature", f"magnetic field: {sign}{m_t_after_fc.group(2)}T"
-
-    # Simple mt-1000oe or hpc-1000oe
-    m_simple_oe = re.match(r"(?:mt|hpc)-(\d+)oe", s)
-    if m_simple_oe:
-        return "temperature", f"magnetic field: {m_simple_oe.group(1)}Oe"
-
-    # Fallback: mt-7t or hpc- without explicit field
-    m_main_t = re.match(r"(?:mt|hpc)-(\d+)t", s)
-    if m_main_t:
-        return "temperature", f"magnetic field: {m_main_t.group(1)}T"
-
-    return "temperature", ""
-
-
 def _rawdata_created(path: Path, raw_metadata: dict[str, Any], session_id: str) -> str:
     return _first_text(
         _time_from_metadata(raw_metadata),
@@ -162,18 +108,14 @@ def raw_entry(root: Path, path: Path) -> dict[str, object]:
     except Exception:
         metadata = {}
     display_name = _first_text(metadata.get("display_name"), path.parent.name)
-    label_parts = display_name.split("__")
-    measurement = str(parts.get("measurement", "")) or (label_parts[2] if len(label_parts) >= 3 else "")
-    suffix = _rawdata_detail(display_name)
-    dependance, fixed = _parse_dependance_fixed(measurement, suffix)
     return {
         "id": path.parent.name,
         "path": rel,
         "file": path.name,
         "display_name": display_name,
         "created": _rawdata_created(path, metadata, _text(parts.get("session"))),
-        "dependance": dependance,
-        "fixed": fixed,
+        "dependance": _text(metadata.get("dependance")),
+        "fixed": _text(metadata.get("fixed")),
         **parts,
     }
 
@@ -182,6 +124,9 @@ def data_entry(root: Path, path: Path) -> dict[str, object]:
     rel = datagen_core.relative_text(path, root)
     parts: dict[str, object] = {"material": "", "sample": "", "measurement": "", "session": ""}
     raw_source = ""
+    display_name = path.parent.name
+    dependance = ""
+    fixed = ""
     try:
         context = datagen_core.build_source_context(root, path, source_name=datagen_core.source_record_name(root, path))
         parts = {
@@ -195,6 +140,9 @@ def data_entry(root: Path, path: Path) -> dict[str, object]:
     try:
         meta_path = path.parent / datagen_core.FLAT_METADATA_NAME
         meta = datagen_core.load_optional_json(meta_path)
+        display_name = _first_text(meta.get("display_name"), path.parent.name)
+        dependance = _text(meta.get("dependance"))
+        fixed = _text(meta.get("fixed"))
         # New schema: rawdata_id replaces source.rawdata_csv
         rawdata_id = meta.get("rawdata_id", "")
         if rawdata_id:
@@ -211,10 +159,14 @@ def data_entry(root: Path, path: Path) -> dict[str, object]:
     except Exception:
         pass
     return {
+        "id": path.parent.name,
         "path": rel,
         "file": path.name,
+        "display_name": display_name,
         "created": _data_created(root, path),
         "raw_source": raw_source,
+        "dependance": dependance,
+        "fixed": fixed,
         **parts,
     }
 
@@ -374,7 +326,7 @@ def analysis_entries(root: Path) -> list[dict[str, object]]:
         project_id = meta_path.parent.name
         entries.append({
             "id": project_id,
-            "project_name": _first_text(meta.get("project_name"), project_id),
+            "display_name": _first_text(meta.get("display_name"), project_id),
             "description": _text(meta.get("description")),
             "created_at": _text(meta.get("created_at")),
             "updated_at": _text(meta.get("updated_at")),
@@ -407,6 +359,8 @@ def analysis_detail(root: Path, project_id: str) -> dict[str, object]:
     root_resolved = root.resolve()
     source_data_raw = meta.get("source_data") or []
     source_data: list[dict[str, object]] = []
+    data_entries_by_id = {str(item.get("id")): item for item in _data_entries(root)}
+    raw_entries_by_path = {str(item.get("path")): item for item in _raw_entries(root)}
     for raw_ref in source_data_raw:
         # Resolve relative to the actual analysis project directory
         try:
@@ -423,20 +377,25 @@ def analysis_detail(root: Path, project_id: str) -> dict[str, object]:
             data_meta_path = root / "data" / data_id / datagen_core.FLAT_METADATA_NAME
             if data_meta_path.exists():
                 data_meta = datagen_core.load_optional_json(data_meta_path)
-                raw_csv = data_meta.get("source", {}).get("rawdata_csv", "")
-                if raw_csv:
-                    raw_source = str(raw_csv)
+                rawdata_id = _text(data_meta.get("rawdata_id"))
+                if rawdata_id:
+                    raw_dir = root / "rawdata" / rawdata_id
+                    candidates = list(raw_dir.glob("*.csv")) + list(raw_dir.glob("*.dat"))
+                    if candidates:
+                        raw_source = datagen_core.relative_text(candidates[0], root)
         source_data.append({
             "ref": raw_ref,
             "path": rel_path,
             "data_id": data_id,
+            "display_name": _first_text(data_entries_by_id.get(data_id, {}).get("display_name"), data_id),
             "exists": (root / rel_path).exists(),
             "raw_source": raw_source,
+            "raw_display_name": _first_text(raw_entries_by_path.get(raw_source or "", {}).get("display_name"), raw_source),
         })
 
     return {
         "id": project_id,
-        "project_name": _first_text(meta.get("project_name"), project_id),
+        "display_name": _first_text(meta.get("display_name"), project_id),
         "description": _text(meta.get("description")),
         "created_at": _text(meta.get("created_at")),
         "updated_at": _text(meta.get("updated_at")),

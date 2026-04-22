@@ -92,8 +92,8 @@ function renderList(items) {
     btn.className = "catalog-list-item";
     btn.dataset.id = entry.id;
     btn.innerHTML = `
-      <div class="catalog-list-name" title="Click again to rename">${escapeHtml(entry.project_name || entry.id)}</div>
-      <div class="catalog-list-meta">${escapeHtml([entry.created_at, entry.source_count ? `${entry.source_count} sources` : ""].filter(Boolean).join(" · "))}</div>
+      <div class="catalog-list-name" title="Click again to rename">${escapeHtml(entry.display_name || entry.id)}</div>
+      <div class="catalog-list-meta">${escapeHtml(entry.id)}</div>
     `;
     btn.addEventListener("click", (e) => {
       if (btn.classList.contains("current")) {
@@ -198,6 +198,10 @@ function wsLinkItem(href, text, sub = "") {
     `</a>`;
 }
 
+function wsRecordLink(href, displayName, id, fallback = "") {
+  return wsLinkItem(href, displayName || id || fallback, id || fallback);
+}
+
 function wsLinkBlock(label, items) {
   if (!items.length) return "";
   return `<section class="link-section">` +
@@ -207,7 +211,7 @@ function wsLinkBlock(label, items) {
 }
 
 function renderDetail(detail) {
-  analysisTitle.textContent = detail.project_name || detail.id;
+  analysisTitle.textContent = detail.display_name || detail.id;
   analysisMeta.textContent = [detail.created_at && `Created ${detail.created_at}`, detail.updated_at && `Updated ${detail.updated_at}`].filter(Boolean).join(" · ");
 
   // Info panel: key-value
@@ -284,18 +288,19 @@ function renderDetail(detail) {
   let missingCount = 0;
   const dataLinks = (detail.source_data || []).map(src => {
     if (src.raw_source) rawdataSet.add(src.raw_source);
-    // Prefer data_id (folder name) over raw filename, strip .csv extension as fallback
     const id = src.data_id || src.path.split("/").pop().replace(/\.csv$/i, "") || src.path;
-    if (src.exists) return wsLinkItem(`/?path=${encodeURIComponent(src.path)}`, id, src.path);
+    const label = src.display_name || id;
+    if (src.exists) return wsRecordLink(`/?path=${encodeURIComponent(src.path)}`, label, id, src.path);
     missingCount += 1;
     return `<span class="catalog-record-link missing">`
-      + `<span class="catalog-record-link-label">${escapeHtml(id)}</span>`
-      + `<span class="catalog-record-link-sub">${escapeHtml(src.path)}</span>`
+      + `<span class="catalog-record-link-label">${escapeHtml(label)}</span>`
+      + `<span class="catalog-record-link-sub">${escapeHtml(id)}</span>`
       + `</span>`;
   });
   const rawLinks = [...rawdataSet].map(raw => {
-    const name = raw.split("/").pop();
-    return wsLinkItem(`/?path=${encodeURIComponent(raw)}`, name, raw);
+    const id = raw.split("/")[1] || raw;
+    const found = (detail.source_data || []).find(src => src.raw_source === raw);
+    return wsRecordLink(`/?path=${encodeURIComponent(raw)}`, found?.raw_display_name || "", id, raw);
   });
   const warningHtml = missingCount
     ? `<div class="analysis-links-warning">${escapeHtml(`${missingCount} data source${missingCount === 1 ? "" : "s"} could not be found. This analysis may be stale.`)}</div>`

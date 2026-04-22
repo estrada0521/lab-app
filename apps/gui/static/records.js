@@ -258,14 +258,14 @@ async function selectRecord(id) {
   })), {label: "RAWDATA"});
   renderLinkBlock("dataLinkBlock", recordData, (payload.data || []).map(item => ({
     href: `/?path=${encodeURIComponent(item.path)}`,
-    label: item.file || item.path.split("/").pop(),
-    sub: item.path,
+    label: item.display_name || item.file || item.path.split("/").pop(),
+    sub: item.id || item.path,
   })), {label: "DATA"});
   if (pageKind === "samples") {
     const expItems = (payload.experiments || []).map(exp => ({
       href: `/experiments/?id=${encodeURIComponent(exp.id)}`,
       label: exp.display_name || exp.id,
-      sub: [exp.material, exp.type, exp.time].filter(Boolean).join(" · "),
+      sub: exp.id,
     }));
     renderLinkBlock("experimentLinkBlock", recordExperiments, expItems, {label: "EXPERIMENT"});
   }
@@ -294,7 +294,7 @@ function renderList(items) {
     button.dataset.id = entry.id;
     button.innerHTML = `
       <div class="catalog-list-name" title="Click again to rename">${escapeHtml(entry.display_name || entry.id)}</div>
-      <div class="catalog-list-meta">${escapeHtml(listMeta(entry))}</div>
+      <div class="catalog-list-meta">${escapeHtml(entry.id)}</div>
     `;
     button.addEventListener("click", (e) => {
       if (button.classList.contains("current")) {
