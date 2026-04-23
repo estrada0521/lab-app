@@ -36,37 +36,22 @@ lab-app/
 ```text
 <db_root>/
 │
-├── DB/                            # material DB (material_id の参照先)
-│
-├── samples/
-│   └── 000001/
-│       └── metadata.json          # material_id ─→ DB/
-│
-├── exp/
-│   └── 000001/
-│       └── metadata.json
-│
-├── rawdata/
-│   └── 000001/
-│       ├── <payload_file>
-│       └── metadata.json          # sample_id  ─→ samples/
-│                                  # session_id ─→ exp/
-│
-├── data/
-│   └── 000001/
-│       ├── 000001.csv
-│       └── metadata.json          # rawdata_id ─→ rawdata/
-│
-├── analysis/
-│   └── 000001/
-│       ├── plot.py
-│       └── metadata.json          # source_data ─→ data/ (複数パス)
-│
-└── calculators/                   # フォルダ名 = calculator_id (semantic 名)
-    └── magnetization_v1/
-        ├── calculator.py
-        ├── calculator.json
-        └── README.md
+├── DB/
+├── samples/000001/metadata.json ─── material_id ──→ DB/
+├── exp/000001/metadata.json
+├── rawdata/000001/
+│   ├── <payload_file>
+│   └── metadata.json ─┬─ sample_id  ──→ samples/
+│                      └─ session_id ──→ exp/
+├── data/000001/
+│   ├── 000001.csv
+│   └── metadata.json ─── rawdata_id ──→ rawdata/
+├── analysis/000001/
+│   ├── plot.py
+│   └── metadata.json ─── source_data ─→ data/ (複数)
+└── calculators/magnetization_v1/
+    ├── calculator.py
+    └── calculator.json
 ```
 
 ---
