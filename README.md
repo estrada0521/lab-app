@@ -35,23 +35,19 @@ lab-app/
 
 ```text
 <db_root>/
+├── analysis/000001/metadata.json
+│     └─ source_data ──→ data/
+│                          └─ rawdata_id ──→ rawdata/
+│                                              ├─ sample_id  ──→ samples/
+│                                              │                   └─ material_id ──→ DB/
+│                                              └─ session_id ──→ exp/
 │
-├── DB/
-├── samples/000001/metadata.json ─── material_id ──→ DB/
+├── data/000001/{000001.csv, metadata.json}
+├── rawdata/000001/{<payload_file>, metadata.json}
+├── samples/000001/metadata.json
 ├── exp/000001/metadata.json
-├── rawdata/000001/
-│   ├── <payload_file>
-│   └── metadata.json ─┬─ sample_id  ──→ samples/
-│                      └─ session_id ──→ exp/
-├── data/000001/
-│   ├── 000001.csv
-│   └── metadata.json ─── rawdata_id ──→ rawdata/
-├── analysis/000001/
-│   ├── plot.py
-│   └── metadata.json ─── source_data ─→ data/ (複数)
-└── calculators/magnetization_v1/
-    ├── calculator.py
-    └── calculator.json
+├── DB/
+└── calculators/magnetization_v1/{calculator.py, calculator.json, README.md}
 ```
 
 ---
