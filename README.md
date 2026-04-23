@@ -1,63 +1,106 @@
-# Lab App
+# lab-app
 
-このリポジトリは、Lab database を閲覧・整理・変換するための code repo です。
-実データは含めず、起動時に `--db-root` で対象 database root を指定して使います。
+ローカルの研究データベース (DB) を閲覧・管理・変換するためのリポジトリです。
+実データは含まず、起動時に `--db-root` で DB の場所を指定して使います。
 
-## Repo Layout
+> **DB は別管理**（例: Google Drive の `okadaharuto-DB/`）。
+> このリポジトリでは GUI ロジック・パイプライン実装・運用文書のみを管理します。
+
+---
+
+## Repo layout
 
 ```text
 lab-app/
-├── apps/       # GUI
-├── pipeline/   # rawdata -> data generation
-├── docs/       # DB 各領域の運用 README
-└── README.md
+├── apps/
+│   └── gui/            # ローカル GUI サーバー (HTTP + SPA)
+│       ├── server.py   # エントリーポイント
+│       ├── catalog.py  # DB 読み取り・一覧生成
+│       ├── core.py     # 共通設定
+│       └── static/     # フロントエンド (HTML/CSS/JS)
+├── pipeline/
+│   ├── datagen/        # rawdata → data 変換エンジン
+│   │   ├── core.py     # メタデータ解決・FilterContext
+│   │   ├── registry.py # calculator プラグイン管理
+│   │   ├── cli.py      # コマンドラインエントリーポイント
+│   │   └── gui.py      # GUI 連携ヘルパー
+│   └── rawdata_to_data.py  # パイプライン実行スクリプト
+├── docs/               # DB 各領域の運用 README
+└── logs/               # エージェントログ等
 ```
 
-対象 DB は別管理です。
+---
+
+## DB layout（参考）
 
 ```text
 <db_root>/
-├── calculators/
-├── DB/
-├── samples/
-├── exp/
-├── rawdata/
-├── data/
-└── analysis/
+├── calculators/        # 計算ロジック (semantic 名: magnetization_v1 等)
+├── DB/                 # material DB
+├── samples/            # 000001/ … (6桁ID)
+├── exp/                # 000001/ … (6桁ID)
+├── rawdata/            # 000001/ … (6桁ID)
+├── data/               # 000001/ … (6桁ID)
+└── analysis/           # 000001/ … (6桁ID)
 ```
 
-## ID Policy
+---
 
-`rawdata`, `data`, `samples`, `exp`, `analysis` は、folder 名を stable `id` として扱います。
-人間向けの名前は metadata の `display_name` に置き、GUI では `display_name` を主表示、`id` を副表示にします。
+## ID ポリシー
 
-この repo の実装は、entity 名そのものではなく `id` を正本として扱う前提です。
+`samples` / `exp` / `rawdata` / `data` / `analysis` は **フォルダ名 = ID**（6桁ゼロ埋め整数）。
 
-## What This Repo Does
+- `id` は metadata.json には記載しない（フォルダ名が正本）
+- 人間向けの名前は `metadata.json` の `display_name` に置く
+- GUI では `display_name` を主表示、`id` を副表示（例: `Sample A · 000001`）
+- `calculators/` は semantic 名（例: `magnetization_v1`）を使う唯一の例外
 
-- `apps/gui`: database を横断して閲覧する GUI
-- `pipeline/datagen`: rawdata から data を生成する基盤
-- `docs/README_*.md`: DB 側で参照する運用文書
+---
 
-GUI では `rawdata`, `data`, `samples`, `exp`, `analysis`, `calculators` を相互リンク付きで扱います。
-`data` 生成時には rawdata, sample, session, material metadata を解決し、生成条件を output metadata に残します。
-
-## Run
+## GUI の起動
 
 ```bash
-python3 -m apps.gui --db-root /path/to/database
+python3 -m apps.gui.server --db-root "/path/to/okadaharuto-DB"
 ```
 
-現在の運用では code repo と DB root は分離されています。calculator 実装や metadata 解決ロジックを変更する場合はこの repo を編集し、実データや record metadata は DB 側で管理します。
+ブラウザが自動で開きます。`--no-open` で抑制できます。
+
+| オプション | デフォルト | 説明 |
+|---|---|---|
+| `--db-root` | `.` | DB ルートディレクトリ |
+| `--host` | `127.0.0.1` | バインドホスト |
+| `--port` | `8765` | バインドポート |
+| `--no-open` | — | ブラウザ自動起動を抑制 |
+
+---
+
+## パイプライン（rawdata → data）
+
+```bash
+python3 pipeline/rawdata_to_data.py <rawdata_source_path> --db-root "/path/to/okadaharuto-DB"
+```
+
+| オプション | デフォルト | 説明 |
+|---|---|---|
+| `--db-root` | `.` | DB ルートディレクトリ |
+| `--name` | source 名から自動決定 | 出力フォルダ/ファイル名 |
+| `--overwrite` | — | 既存出力を上書き |
+
+計算ロジックは `<db_root>/calculators/` 以下の Python モジュールとして DB 側に置かれています。
+パイプラインは rawdata・sample・material のメタデータを解決して計算器に渡し、結果 CSV と metadata.json を `data/` に出力します。
+
+---
 
 ## Docs
 
-詳細な運用方針は `docs/` を参照してください。
+各領域の詳細な運用方針は `docs/` を参照してください。
 
-- `docs/README_db.md`
-- `docs/README_rawdata.md`
-- `docs/README_data.md`
-- `docs/README_samples.md`
-- `docs/README_exp.md`
-- `docs/README_analysis.md`
-- `docs/README_calculators.md`
+| ファイル | 内容 |
+|---|---|
+| `docs/README_db.md` | DB 全体構成・命名規則 |
+| `docs/README_samples.md` | samples 運用 |
+| `docs/README_exp.md` | exp (session) 運用 |
+| `docs/README_rawdata.md` | rawdata 運用 |
+| `docs/README_data.md` | data (変換済みデータ) 運用 |
+| `docs/README_analysis.md` | analysis 運用 |
+| `docs/README_calculators.md` | calculator プラグイン仕様 |
