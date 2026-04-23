@@ -118,7 +118,7 @@ def raw_entry(root: Path, path: Path) -> dict[str, object]:
         parts = {
             "material": context.material_id,
             "sample": context.sample_id,
-            "measurement": context.measurement_type,
+            "measurement": context.kind,
             "session": context.session_id,
         }
     except Exception as exc:
@@ -152,7 +152,7 @@ def data_entry(root: Path, path: Path) -> dict[str, object]:
         parts = {
             "material": context.material_id,
             "sample": context.sample_id,
-            "measurement": context.measurement_type,
+            "measurement": context.kind,
             "session": context.session_id,
         }
     except Exception as exc:

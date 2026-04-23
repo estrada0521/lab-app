@@ -414,7 +414,7 @@ def summarize_raw_source(
         "rows": len(rows),
         "material_id": context.material_id,
         "sample_id": context.sample_id,
-        "measurement_type": context.measurement_type,
+        "kind": context.kind,
         "session_id": context.session_id,
         "filter_id": context.filter_id,
         "default_data_id": current_data_id,

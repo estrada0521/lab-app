@@ -16,7 +16,7 @@ GUI と pipeline が metadata 解決を始める起点は `rawdata/<rawdata_id>/
 
 - `sample_id`（`samples/000001/` のような 6桁 ID を参照）
 - `session_id`（`exp/000001/` のような 6桁 ID を参照）
-- `measurement_type`
+- `kind`
 - `display_name`
 
 calculator が必要とする測定固有 parameter は、必要なら rawdata metadata に直接持たせます。

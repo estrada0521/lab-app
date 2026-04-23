@@ -75,6 +75,10 @@ class FilterContext:
     parameter_meta: dict[str, Any]
 
     @property
+    def kind(self) -> str:
+        return self.measurement_type
+
+    @property
     def session_meta(self) -> dict[str, Any]:
         # Compatibility shim for older calculators. New code should use parameter_meta.
         return self.parameter_meta
@@ -301,7 +305,7 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
         source_meta.get("sample"),
         _nested_value(source_meta, "source", "sample_id"),
     )
-    measurement_type = _first_text(
+    kind = _first_text(
         source_meta.get("kind"),
         rawdata_meta.get("kind"),
         source_meta.get("type"),
@@ -358,7 +362,7 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
         material_dir=material_dir,
         sample_id=sample_id,
         sample_dir=sample_dir,
-        measurement_type=measurement_type,
+        measurement_type=kind,
         session_id=session_id,
         session_dir=session_dir,
         filter_id=filter_id,
