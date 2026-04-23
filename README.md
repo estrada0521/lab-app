@@ -36,174 +36,68 @@ lab-app/
 ```text
 <db_root>/
 │
-├── DB/                                   # material DB
-│   └── ...
+├── DB/                                        # material DB (material_id の参照先)
 │
 ├── samples/
-│   ├── 000001/
-│   │   └── metadata.json
-│   └── ...
+│   └── 000001/
+│       └── metadata.json                      # display_name
+│                                              # material_id ─→ DB/
+│                                              # form, mass_mg, orientation
+│                                              # owner, polish_date, synthesizer, notes
 │
 ├── exp/
-│   ├── 000001/
-│   │   └── metadata.json
-│   └── ...
+│   └── 000001/
+│       └── metadata.json                      # display_name
+│                                              # start_date, end_date
 │
 ├── rawdata/
-│   ├── 000001/
-│   │   ├── <装置出力ファイル>             # ファイル名はそのまま保持
-│   │   ├── filterdata/                   # (任意) フィルタ済み中間ファイル
-│   │   └── metadata.json
-│   └── ...
+│   └── 000001/
+│       ├── <payload_file>                     # 装置出力ファイル (名前そのまま)
+│       └── metadata.json                      # display_name
+│                                              # kind, payload_file
+│                                              # sample_id ─→ samples/
+│                                              # session_id ─→ exp/
+│                                              # conditions: {sweep, fixed}
+│                                              # default_x, default_y
+│                                              # uploaded_at
+│                                              # (strain のみ) strain_calculation:
+│                                              #   calculator, gauge_factor, amplifier_gain
+│                                              #   input_voltage_v, bridge_correction_factor
+│                                              #   lockin_sign, axis_family
+│                                              #   copper_thermal_expansion
 │
 ├── data/
-│   ├── 000001/
-│   │   ├── 000001.csv
-│   │   └── metadata.json
-│   └── ...
+│   └── 000001/
+│       ├── 000001.csv
+│       └── metadata.json                      # display_name
+│                                              # calculator, kind
+│                                              # rawdata_id ─→ rawdata/
+│                                              # conditions: {sweep, fixed}
+│                                              # default_x, default_y
+│                                              # created_at
 │
 ├── analysis/
-│   ├── 000001/
-│   │   ├── plot.py
-│   │   ├── plotted_data.csv
-│   │   ├── summary.png / summary.pdf
-│   │   └── metadata.json
-│   └── ...
+│   └── 000001/
+│       ├── plot.py
+│       ├── plotted_data.csv
+│       ├── summary.png / .pdf
+│       └── metadata.json                      # display_name
+│                                              # source_data ─→ data/ (複数パス)
+│                                              # created_at
 │
-└── calculators/
-    ├── magnetization_v1/
-    │   ├── calculator.py
-    │   ├── calculator.json
-    │   └── README.md
-    └── strain_raw_v1/
+└── calculators/                               # フォルダ名 = calculator_id (semantic 名)
+    └── magnetization_v1/
         ├── calculator.py
-        ├── calculator.json
+        ├── calculator.json                    # display_name, description
+        │                                      # transform_type, ui_options
+        │                                      # output_columns
+        │                                      # required_columns_detail
+        │                                      # required_parameters_detail
+        │                                      #   fallback: rawdata / sample / material
+        │                                      # data_metadata_policy
         ├── README.md
-        └── assets/
-            └── cu_thermal_expansion.csv
+        └── assets/                            # (任意) lookup table 等
 ```
-
-### samples/metadata.json
-
-```json
-{
-  "display_name": "250707",
-  "form": "single_crystal",
-  "mass_mg": 22.8,
-  "material_id": "NiS2",
-  "orientation": "001",
-  "owner": "Haruto Okada",
-  "polish_date": "250707",
-  "synthesis_date": "unknown",
-  "synthesizer": "Masato Matsuura",
-  "notes": ""
-}
-```
-
-### exp/metadata.json
-
-```json
-{
-  "display_name": "NiS2_001_磁場誘起歪み測定_by_低温研PPMS",
-  "start_date": "251202",
-  "end_date": "251207"
-}
-```
-
-### rawdata/metadata.json
-
-magnetization の例:
-
-```json
-{
-  "display_name": "NiS2__mag__mh-10k",
-  "kind": "magnetization",
-  "sample_id": "000002",
-  "session_id": "000006",
-  "payload_file": "NiS2__250707-2__magnetization__exp-251217__mh-10k.dat",
-  "conditions": {
-    "fixed": { "temperature": "10K" },
-    "sweep": ["field"]
-  },
-  "default_x": "Magnetic Field (Oe)",
-  "default_y": "DC Moment Fixed Ctr (emu)",
-  "uploaded_at": ""
-}
-```
-
-strain の場合は calculator パラメータを `strain_calculation` ブロックに追加で持つ:
-
-```json
-{
-  "display_name": "NiS2_strain_001_250709",
-  "kind": "strain",
-  "sample_id": "000001",
-  "session_id": "000002",
-  "payload_file": "NiS2__250707__strain__exp-250709__raw.csv",
-  "strain_calculation": {
-    "calculator": "strain_raw_v1",
-    "gauge_factor": 2.0,
-    "amplifier_gain": 100.0,
-    "input_voltage_v": 0.5,
-    "bridge_correction_factor": 0.999,
-    "lockin_sign": 1.0,
-    "axis_family": "001",
-    "copper_thermal_expansion": "calculators/strain_raw_v1/assets/cu_thermal_expansion.csv"
-  },
-  "uploaded_at": ""
-}
-```
-
-### data/metadata.json
-
-```json
-{
-  "display_name": "250709_NiS2_strain_001_10K",
-  "calculator": "strain_raw_v1",
-  "kind": "strain",
-  "rawdata_id": "000012",
-  "created_at": "2026-04-21T18:05:53",
-  "default_x": "field_t",
-  "default_y": "strain_offset_um_per_m",
-  "conditions": {
-    "fixed": { "temperature": "10K" },
-    "sweep": ["field"]
-  }
-}
-```
-
-### analysis/metadata.json
-
-```json
-{
-  "display_name": "nis2_001_111_field_dependence_summary",
-  "created_at": "2026-04-22",
-  "source_data": [
-    "../../data/000037/000037.csv",
-    "../../data/000004/000004.csv"
-  ]
-}
-```
-
-### calculators/calculator.json
-
-```json
-{
-  "display_name": "Raw Strain Bridge Conversion",
-  "description": "...",
-  "transform_type": "column",
-  "output_columns": ["field_t", "temperature_k", "strain_offset_um_per_m", "..."],
-  "required_columns_detail": [ { "all_of": ["Lockin_data_1", "PPMS_temp_K", "Mag_field_Oe"] } ],
-  "required_parameters_detail": [
-    { "name": "gauge_factor", "fallback": ["rawdata"] },
-    { "name": "mass_mg",      "fallback": ["sample"] }
-  ],
-  "data_metadata_policy": { "..." : "..." },
-  "ui_options": []
-}
-```
-
-calculator の `id` はフォルダ名が SoT のため `calculator.json` には含まれない。
 
 ---
 
