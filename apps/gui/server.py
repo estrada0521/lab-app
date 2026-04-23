@@ -792,7 +792,6 @@ def _cascade_rename(root: Path, kind: str, old_id: str, new_id: str) -> dict:
 
 
 def _analysis_stale_refs_for_data(root: Path, data_id: str) -> dict[str, object]:
-    data_dir = (root / "data" / data_id).resolve()
     analysis_ids: list[str] = []
     missing_refs = 0
     for meta_path in _iter_metadata_files(root, "analysis"):
@@ -802,18 +801,13 @@ def _analysis_stale_refs_for_data(root: Path, data_id: str) -> dict[str, object]
         except (OSError, json.JSONDecodeError) as exc:
             _log.warning("Skipping unreadable analysis metadata %s: %s", meta_path, exc)
             continue
+        refs = meta.get("source_data")
         if not isinstance(refs, list):
             continue
         project_id = meta_path.parent.name
         project_missing = 0
         for raw_ref in refs:
-            if not isinstance(raw_ref, str) or not raw_ref:
-                continue
-            try:
-                actual = (meta_path.parent / raw_ref).resolve()
-            except OSError:
-                continue
-            if actual == data_dir or data_dir in actual.parents:
+            if isinstance(raw_ref, str) and raw_ref == data_id:
                 project_missing += 1
         if project_missing:
             analysis_ids.append(project_id)

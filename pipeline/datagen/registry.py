@@ -34,7 +34,7 @@ class CalculatorEntry:
     description: str
     ui_options: list[dict[str, Any]]
     required_columns_detail: list[dict[str, Any]]
-    required_parameters_detail: list[dict[str, Any]]
+    required_parameters: list[str]
     data_metadata_policy: dict[str, Any]
     manifest_path: Path
     package_dir: Path
@@ -64,13 +64,14 @@ def _calculator_entry(root: Path, manifest_path: Path) -> CalculatorEntry:
     ui_options = payload.get("ui_options") if isinstance(payload.get("ui_options"), list) else []
     transform_type = str(payload.get("transform_type") or "column").strip()
     output_columns = [str(c) for c in payload.get("output_columns", []) if str(c).strip()]
+    required_parameters = [str(item).strip() for item in payload.get("required_parameters", []) if str(item).strip()]
     return CalculatorEntry(
         id=calculator_id,
         display_name=display_name,
         description=description,
         ui_options=[dict(item) for item in ui_options if isinstance(item, dict)],
         required_columns_detail=[dict(item) for item in payload.get("required_columns_detail", []) if isinstance(item, dict)],
-        required_parameters_detail=[dict(item) for item in payload.get("required_parameters_detail", []) if isinstance(item, dict)],
+        required_parameters=required_parameters,
         data_metadata_policy=payload.get("data_metadata_policy") if isinstance(payload.get("data_metadata_policy"), dict) else {},
         manifest_path=manifest_path.resolve(),
         package_dir=package_dir,
@@ -179,7 +180,7 @@ def _entry_payload(root: Path, entry: CalculatorEntry, *, include_readme: bool =
         "description": entry.description,
         "ui_options": entry.ui_options,
         "required_columns_detail": entry.required_columns_detail,
-        "required_parameters_detail": entry.required_parameters_detail,
+        "required_parameters": entry.required_parameters,
         "data_metadata_policy": entry.data_metadata_policy,
         "package_path": relative_text(entry.package_dir, root),
         "manifest_path": relative_text(entry.manifest_path, root),
@@ -198,12 +199,7 @@ def list_calculators(root: Path, *, include_readme: bool = False) -> list[dict[s
 
 
 def _required_param_names(entry: CalculatorEntry) -> list[str]:
-    names: list[str] = []
-    for item in entry.required_parameters_detail:
-        name = str(item.get("name") or "").strip()
-        if name and name not in names:
-            names.append(name)
-    return names
+    return list(entry.required_parameters)
 
 
 def _context_for_entry(entry: CalculatorEntry, context: FilterContext) -> FilterContext:

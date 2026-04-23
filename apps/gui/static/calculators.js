@@ -102,7 +102,7 @@ function selectCalculator(id) {
     ["display_name", calculator.display_name || "—"],
     ["description", calculator.description || "—"],
     ["required columns detail", calculator.required_columns_detail || []],
-    ["required parameters detail", calculator.required_parameters_detail || []],
+    ["required parameters", calculator.required_parameters || []],
     ["data metadata policy", calculator.data_metadata_policy || {}],
     ["transform", calculator.transform_type || "—"],
     ["output columns", calculator.output_columns || []],

@@ -289,7 +289,7 @@ function renderDetail(detail) {
   let missingCount = 0;
   const dataLinks = (detail.source_data || []).map(src => {
     if (src.raw_source) rawdataSet.add(src.raw_source);
-    const id = src.data_id || src.path.split("/").pop().replace(/\.csv$/i, "") || src.path;
+    const id = src.data_id || src.ref || src.path;
     const label = src.display_name || id;
     if (src.exists) return wsRecordLink(`/?path=${encodeURIComponent(src.path)}`, label, id, src.path);
     missingCount += 1;

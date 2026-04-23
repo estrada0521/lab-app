@@ -383,25 +383,19 @@ def analysis_detail(root: Path, project_id: str) -> dict[str, object]:
             elif ext in ANALYSIS_SCRIPT_EXTS:
                 scripts.append(rel)
 
-    # Resolve source_data paths to repo-relative using proper relative resolution
-    root_resolved = root.resolve()
+    # source_data is data-id based.
     source_data_raw = meta.get("source_data") or []
     source_data: list[dict[str, object]] = []
     data_entries_by_id = {str(item.get("id")): item for item in _data_entries(root)}
     raw_entries_by_path = {str(item.get("path")): item for item in _raw_entries(root)}
     for raw_ref in source_data_raw:
-        # Resolve relative to the actual analysis project directory
-        try:
-            actual = (record_dir / raw_ref).resolve()
-            rel_path = str(actual.relative_to(root_resolved))
-        except (ValueError, OSError):
-            rel_path = str(raw_ref)
-
-        data_id = None
+        ref_text = _text(raw_ref)
+        if not ref_text:
+            continue
+        data_id = ref_text
+        rel_path = f"data/{data_id}/{data_id}.csv"
         raw_source = None
-        rel_parts = rel_path.replace("\\", "/").split("/")
-        if len(rel_parts) >= 2 and rel_parts[0] == "data":
-            data_id = rel_parts[1]
+        if data_id:
             data_meta_path = root / "data" / data_id / datagen_core.FLAT_METADATA_NAME
             if data_meta_path.exists():
                 data_meta = datagen_core.load_optional_json(data_meta_path)
@@ -412,7 +406,7 @@ def analysis_detail(root: Path, project_id: str) -> dict[str, object]:
                     if candidates:
                         raw_source = datagen_core.relative_text(candidates[0], root)
         source_data.append({
-            "ref": raw_ref,
+            "ref": ref_text,
             "path": rel_path,
             "data_id": data_id,
             "display_name": _first_text(data_entries_by_id.get(data_id, {}).get("display_name"), data_id),
