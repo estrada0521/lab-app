@@ -258,7 +258,7 @@ metadata
 
 意味:
 
-- `source_data`: `../src/data/` から読む元データ
+- `source_data`: DB 内の `data/` から読む元データ
 - `analysis_data`: fit、補正、集約、抽出などを行った後のデータ
 - `plot_data`: 実際に plot に使う x / y / error / label 値
 - `figure`: 生成した画像出力

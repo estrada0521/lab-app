@@ -33,20 +33,60 @@ lab-app/
 
 ## DB layout
 
+```mermaid
+graph TD
+    %% 1. Input Layer (Source & Context)
+    subgraph Input [計測データとコンテキスト]
+        direction LR
+        Raw["<b>Rawdata (計測値)</b><br/>rawdata/000001/"]
+        Sample["<b>Sample (試料)</b><br/>samples/000001/"]
+        Exp["<b>Exp (実験条件)</b><br/>exp/000001/"]
+        Material["<b>Material (物性)</b><br/>DB/materials/NiS2.json"]
+    end
+
+    %% 2. Processing Layer (Logic)
+    Calc[["<b>Calculator (計算ロジック)</b><br/>calculators/mag_v1/"]]
+    
+    %% 3. Data Transformation Flow
+    Raw --> |"Source"| Pipeline([<b>Pipeline</b>])
+    Calc --> |"Logic"| Pipeline
+    Input -.-> |"Metadata"| Pipeline
+    
+    Pipeline ==> |"生成"| Data["<b>Data (解析用データ)</b><br/>data/000001/"]
+
+    %% 4. Analysis Layer
+    Data --> |"参照"| Analysis["<b>Analysis (解析プロジェクト)</b><br/>analysis/000001/"]
+
+    %% 5. Internal References (Metadata Links)
+    Data -. "rawdata_id" .-> Raw
+    Data -. "calculator" .-> Calc
+    Raw -. "sample_id" .-> Sample
+    Raw -. "session_id" .-> Exp
+    Sample -. "material_id" .-> Material
+
+    %% Styling
+    style Pipeline fill:#f9f,stroke:#333,stroke-width:2px
+    style Data fill:#bbf,stroke:#333,stroke-width:2px
+    style Raw fill:#dfd,stroke:#333,stroke-width:1px
+```
+
+### Directory Structure
 ```text
 <db_root>/
-├── analysis/000001/metadata.json
-│   └── source_data ──────────────────────────────────────────────────┐
-├── data/000001/{000001.csv, metadata.json} ◄───────────────────────────┘
-│   └── rawdata_id ────────────────────────────────────────────────────┐
-├── rawdata/000001/{<payload>, metadata.json} ◄────────────────────────┘
-│   ├── sample_id  ────────────────────────────────────────────────────┐
-│   └── session_id ────────────────────────────────────────────────────┼──┐
-├── samples/000001/metadata.json ◄────────────────────────────────────┘  │
-│   └── material_id ───────────────────────────────────────────────────┐  │
-├── exp/000001/metadata.json ◄─────────────────────────────────────────│──┘
-├── DB/ ◄──────────────────────────────────────────────────────────────┘
-└── calculators/magnetization_v1/{calculator.py, calculator.json, README.md}
+├── analysis/           # 解析プロジェクト
+│   └── 000001/         # {metadata.json, plots, scripts...}
+├── data/               # 変換済みデータ (Calculated results)
+│   └── 000001/         # {000001.csv, metadata.json}
+├── rawdata/            # 装置から出力された生データ
+│   └── 000001/         # {payload.csv, metadata.json}
+├── samples/            # 物理サンプルの管理
+│   └── 000001/         # {metadata.json, images/}
+├── exp/                # 測定セッション・実験条件の管理
+│   └── 000001/         # {metadata.json}
+├── DB/
+│   └── materials/      # 物質定数・組成等の定義 (NiS2.json 等)
+└── calculators/        # 計算ロジック本体 (DB 側にプラグインとして保持)
+    └── magnetization_v1/
 ```
 
 ---
