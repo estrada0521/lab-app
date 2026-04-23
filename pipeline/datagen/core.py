@@ -66,17 +66,13 @@ class FilterContext:
     material_dir: Path
     sample_id: str
     sample_dir: Path
-    measurement_type: str
+    kind: str
     session_id: str
     session_dir: Path
     filter_id: str
     material_meta: dict[str, Any]
     sample_meta: dict[str, Any]
     parameter_meta: dict[str, Any]
-
-    @property
-    def kind(self) -> str:
-        return self.measurement_type
 
     @property
     def session_meta(self) -> dict[str, Any]:
@@ -362,7 +358,7 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
         material_dir=material_dir,
         sample_id=sample_id,
         sample_dir=sample_dir,
-        measurement_type=kind,
+        kind=kind,
         session_id=session_id,
         session_dir=session_dir,
         filter_id=filter_id,
