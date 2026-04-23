@@ -355,7 +355,7 @@ def _is_rawdata_file(path: Path) -> bool:
     return (path.parent.name == "rawdata" or _is_flat_rawdata_file(REPO_ROOT, path)) and path.suffix.lower() in RAW_FILE_SUFFIXES and path.is_file()
 
 
-def _session_dir_for_generated_path(path: Path) -> Path | None:
+def _exp_dir_for_generated_path(path: Path) -> Path | None:
     parts = path.parts
     marker_indices = [index for index, part in enumerate(parts) if part == "data"]
     if not marker_indices:
@@ -379,10 +379,10 @@ def _candidate_raw_stems(path: Path) -> list[str]:
 
 
 def _fallback_raw_source(path: Path) -> Path | None:
-    session_dir = _session_dir_for_generated_path(path)
-    if session_dir is None:
+    exp_dir = _exp_dir_for_generated_path(path)
+    if exp_dir is None:
         return None
-    raw_dir = session_dir / "rawdata"
+    raw_dir = exp_dir / "rawdata"
     if not raw_dir.is_dir():
         return None
     for stem in _candidate_raw_stems(path):

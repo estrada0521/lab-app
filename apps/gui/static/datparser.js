@@ -72,7 +72,7 @@
     let currentKind = "rawdata";
     let workspaceFiles = [];
     let samplesIndex = {};
-    let sessionsIndex = {};    let rawFiles = [];
+    let expsIndex = {};    let rawFiles = [];
     let generatedDataFiles = [];
     let currentDataSummary = null;
     let allCalculators = [];
@@ -212,7 +212,7 @@
     }
 
     function pathParts(path, kind = inferKind(path), metadata = null) {
-      if (metadata && (metadata.material || metadata.sample || metadata.measurement || metadata.session || metadata.file || metadata.created)) {
+      if (metadata && (metadata.material || metadata.sample || metadata.measurement || metadata.exp || metadata.file || metadata.created)) {
         return {
           kind,
           material: metadata.material || "",
@@ -220,7 +220,7 @@
           measurement: metadata.measurement || "",
           dependance: metadata.dependance || "",
           fixed: metadata.fixed || "",
-          session: metadata.session || "",
+          exp: metadata.exp || "",
           time: metadata.created || "",
           file: metadata.file || (path.split("/").pop() || ""),
         };
@@ -234,7 +234,7 @@
         material: materialsIndex >= 0 ? (parts[materialsIndex + 1] || "") : "",
         sample: samplesIndex >= 0 ? (parts[samplesIndex + 1] || "") : "",
         measurement: samplesIndex >= 0 ? (parts[samplesIndex + 2] || "") : "",
-        session: markerIndex >= 1 ? (parts[markerIndex - 1] || "") : "",
+        exp: markerIndex >= 1 ? (parts[markerIndex - 1] || "") : "",
         time: "",
         file: parts[parts.length - 1] || ""
       };
@@ -267,7 +267,7 @@
         parts.sample,
         parts.measurement,
         parts.dependance,
-        parts.session,
+        parts.exp,
         parts.time,
         kindLabel(item.kind),
         item.raw_source || "",
@@ -282,8 +282,8 @@
     function browserSort(a, b) {
       const aParts = pathParts(a.path, a.kind, a);
       const bParts = pathParts(b.path, b.kind, b);
-      const aKey = [aParts.measurement, aParts.time, aParts.sample, aParts.session, a.kind, aParts.file].join("\u0000");
-      const bKey = [bParts.measurement, bParts.time, bParts.sample, bParts.session, b.kind, bParts.file].join("\u0000");
+      const aKey = [aParts.measurement, aParts.time, aParts.sample, aParts.exp, a.kind, aParts.file].join("\u0000");
+      const bKey = [bParts.measurement, bParts.time, bParts.sample, bParts.exp, b.kind, bParts.file].join("\u0000");
       return aKey.localeCompare(bKey, undefined, {numeric: true});
     }
 
@@ -405,7 +405,7 @@
       const measurement = measurementFilterSelect.value;
       const dependance = timeFilterSelect.value;
       const sample = sampleFilterSelect?.value || "";
-      const session = sessionFilterSelect?.value || "";
+      const exp = sessionFilterSelect?.value || "";
       const query = (browserSearch.value || "").trim().toLowerCase();
       return workspaceFiles.filter(item => {
         const parts = pathParts(item.path, item.kind, item);
@@ -413,7 +413,7 @@
           && (!measurement || parts.measurement === measurement)
           && (!dependance || conditionToken(parts) === dependance)
           && (!sample || parts.sample === sample)
-          && (!session || parts.session === session)
+          && (!exp || parts.exp === exp)
           && (!query || browserSearchText(item).includes(query));
       });
     }
@@ -440,12 +440,12 @@
         .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
       const samples = Array.from(new Set(workspaceFiles.map(item => pathParts(item.path, item.kind, item).sample).filter(Boolean)))
         .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
-      const sessions = Array.from(new Set(workspaceFiles.map(item => pathParts(item.path, item.kind, item).session).filter(Boolean)))
+      const exps = Array.from(new Set(workspaceFiles.map(item => pathParts(item.path, item.kind, item).exp).filter(Boolean)))
         .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
       setSelectOptions(measurementFilterSelect, [["", "all kinds"], ...measurements.map(value => [value, value])]);
       setSelectOptions(timeFilterSelect, [["", "all conditions"], ...dependances.map(value => [value, value])]);
       if (sampleFilterSelect) setSelectOptions(sampleFilterSelect, [["", "all samples"], ...samples.map(id => [id, samplesIndex[id] ? `${samplesIndex[id]} (${id})` : id])]);
-      if (sessionFilterSelect) setSelectOptions(sessionFilterSelect, [["", "all sessions"], ...sessions.map(id => [id, sessionsIndex[id] ? `${sessionsIndex[id]} (${id})` : id])]);
+      if (sessionFilterSelect) setSelectOptions(sessionFilterSelect, [["", "all exps"], ...exps.map(id => [id, expsIndex[id] ? `${expsIndex[id]} (${id})` : id])]);
     }
 
     function updateBrowserFiles(options = {}) {
@@ -466,7 +466,7 @@
       generatedDataFiles = dataPayload.files || [];
       allCalculators = calculatorsPayload.calculators || [];
       samplesIndex = rawPayload.samples_index || dataPayload.samples_index || {};
-      sessionsIndex = rawPayload.sessions_index || dataPayload.sessions_index || {};
+      expsIndex = rawPayload.exps_index || dataPayload.exps_index || {};
       const rawEntries = rawPayload.entries || rawFiles.map(path => ({path, file: path.split("/").pop() || ""}));
       const dataEntries = dataPayload.entries || generatedDataFiles.map(path => ({path, file: path.split("/").pop() || ""}));
       workspaceFiles = [
@@ -790,7 +790,7 @@
           }));
         const html = [
           parts.sample && wsLinkBlock("SAMPLE", [{href: `/samples/?id=${encodeURIComponent(parts.sample)}`, text: samplesIndex[parts.sample] || parts.sample, sub: parts.sample}]),
-          parts.session && wsLinkBlock("EXP", [{href: `/experiments/?id=${encodeURIComponent(parts.session)}`, text: sessionsIndex[parts.session] || parts.session, sub: parts.session}]),
+          parts.exp && wsLinkBlock("EXP", [{href: `/experiments/?id=${encodeURIComponent(parts.exp)}`, text: expsIndex[parts.exp] || parts.exp, sub: parts.exp}]),
           wsLinkBlock("DATA", dataItems),
         ].filter(Boolean).join("");
         workspaceRelatedLinks.innerHTML = html || '<div class="data-info-val">—</div>';
@@ -801,10 +801,10 @@
       const rawSourcePath = dataEntry?.raw_source || "";
       const rawdataId = meta?.rawdata_id || "";
       const sampleId = meta?.sample_id || "";
-      const sessionId = meta?.session_id || "";
+      const expId = meta?.exp_id || "";
       const html = [
         sampleId && wsLinkBlock("SAMPLE", [{href: `/samples/?id=${encodeURIComponent(sampleId)}`, text: samplesIndex[sampleId] || sampleId, sub: sampleId}]),
-        sessionId && wsLinkBlock("EXP", [{href: `/experiments/?id=${encodeURIComponent(sessionId)}`, text: sessionsIndex[sessionId] || sessionId, sub: sessionId}]),
+        expId && wsLinkBlock("EXP", [{href: `/experiments/?id=${encodeURIComponent(expId)}`, text: expsIndex[expId] || expId, sub: expId}]),
         rawSourcePath && wsLinkBlock("RAWDATA", [{
           href: `/?path=${encodeURIComponent(rawSourcePath)}`,
           text: workspaceFiles.find(e => e.path === rawSourcePath)?.display_name || rawSourcePath.split("/").pop(),
@@ -1507,7 +1507,7 @@
         parts.sample ? `sample: ${parts.sample}` : "",
         parts.measurement ? `kind: ${parts.measurement}` : "",
         parts.dependance ? `condition: ${parts.dependance}` : "",
-        parts.session ? `session: ${parts.session}` : "",
+        parts.exp ? `exp: ${parts.exp}` : "",
         currentPlot?.timeColumn ? `time: ${currentPlot.timeColumn}` : "",
         previewFiltersEnabled ? "filters: preview" : "",
       ];

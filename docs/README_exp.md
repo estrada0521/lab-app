@@ -1,10 +1,10 @@
 # exp
 
-`exp/` は experiment / session record の置き場です。
+`exp/` は experiment record の置き場です。
 
-- 各 record は `exp/<session_id>/` の 1 directory で管理します（`session_id` は `000001` のような 6桁ゼロ埋め数値）
-- session の metadata は `metadata.json` に保存します
-- `session_id` は folder 名を SoT とし、`metadata.json` に重複保存しません
+- 各 record は `exp/<exp_id>/` の 1 directory で管理します（`exp_id` は `000001` のような 6桁ゼロ埋め数値）
+- experiment metadata は `metadata.json` に保存します
+- `exp_id` は folder 名を SoT とし、`metadata.json` に重複保存しません
 - human readable な表示名は `display_name` に持たせます
 
 ## GUI / pipeline 互換メモ

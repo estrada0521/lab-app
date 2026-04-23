@@ -86,8 +86,8 @@ class FilterContext:
     sample_id: str
     sample_dir: Path
     kind: str
-    session_id: str
-    session_dir: Path
+    exp_id: str
+    exp_dir: Path
     filter_id: str
     raw_meta: dict[str, Any]
     material_meta: dict[str, Any]
@@ -424,14 +424,11 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
         rawdata_meta.get("kind"),
         source_meta.get("type"),
     )
-    session_id = _first_text(
-        source_meta.get("session_id"),
-        rawdata_meta.get("session_id"),
-        source_meta.get("session"),
+    exp_id = _first_text(
         source_meta.get("exp_id"),
         rawdata_meta.get("exp_id"),
         source_meta.get("exp"),
-        _nested_value(source_meta, "source", "session_id"),
+        _nested_value(source_meta, "source", "exp_id"),
     )
     sample_meta: dict[str, Any] = {}
     sample_meta_path: Path | None = None
@@ -469,7 +466,7 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
     filter_id = source_name or source_record_name(root, source_path) or source_path.stem
     material_dir = material_meta_path.parent if material_meta_path else root / FLAT_DB_DIR / FLAT_DB_MATERIALS_DIR / material_id
     sample_dir = sample_meta_path.parent if sample_meta_path else root / FLAT_SAMPLES_DIR / sample_id
-    session_dir = root / FLAT_EXP_DIR / session_id
+    exp_dir = root / FLAT_EXP_DIR / exp_id
     return FilterContext(
         repo_root=root,
         source_path=source_path,
@@ -478,8 +475,8 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
         sample_id=sample_id,
         sample_dir=sample_dir,
         kind=kind,
-        session_id=session_id,
-        session_dir=session_dir,
+        exp_id=exp_id,
+        exp_dir=exp_dir,
         filter_id=filter_id,
         raw_meta=raw_meta,
         material_meta=material_meta,
@@ -616,5 +613,5 @@ def read_filter_metadata(source_path: Path) -> dict[str, Any]:
     return read_metadata(source_path.with_suffix(".json"))
 
 
-def experiment_date(session_id: str) -> str:
-    return session_id.removeprefix("exp-") if session_id.startswith("exp-") else session_id
+def experiment_date(exp_id: str) -> str:
+    return exp_id.removeprefix("exp-") if exp_id.startswith("exp-") else exp_id

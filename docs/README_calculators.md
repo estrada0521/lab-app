@@ -141,7 +141,7 @@ fallback や alias のような解決経路は host 側の共通 resolver の責
 - `context.resolved_params`
 - `context.material_id`
 - `context.sample_id`
-- `context.session_id`
+- `context.exp_id`
 - `context.material_meta`
 - `context.sample_meta`
 

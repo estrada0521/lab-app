@@ -63,11 +63,11 @@ def _time_from_metadata(metadata: dict[str, Any]) -> str:
     return ""
 
 
-def record_time(raw_metadata: dict[str, Any], session_metadata: dict[str, Any], session_id: str) -> str:
+def record_time(raw_metadata: dict[str, Any], exp_metadata: dict[str, Any], exp_id: str) -> str:
     return _first_text(
         _time_from_metadata(raw_metadata),
-        _time_from_metadata(session_metadata),
-        datagen_core.experiment_date(session_id),
+        _time_from_metadata(exp_metadata),
+        datagen_core.experiment_date(exp_id),
     )
 
 
@@ -80,30 +80,30 @@ def _file_mtime_ym(path: Path) -> str:
         return ""
 
 
-def _session_date(session_id: str) -> str:
-    match = re.match(r"^exp-(\d{6})$", session_id)
+def _exp_date(exp_id: str) -> str:
+    match = re.match(r"^exp-(\d{6})$", exp_id)
     if match:
         d = match.group(1)
         return f"20{d[:2]}-{d[2:4]}-{d[4:6]}"
     return ""
 
 
-def _rawdata_created(path: Path, raw_metadata: dict[str, Any], session_id: str) -> str:
+def _rawdata_created(path: Path, raw_metadata: dict[str, Any], exp_id: str) -> str:
     return _first_text(
         _time_from_metadata(raw_metadata),
-        _session_date(session_id),
+        _exp_date(exp_id),
         _file_mtime_ym(path),
     )
 
 
 def _data_created(root: Path, path: Path) -> str:
-    """Created date of a data file: use the source rawdata metadata/session."""
+    """Created date of a data file: use the source rawdata metadata/exp."""
     try:
         raw = datparser_core.resolve_raw_source(root, path)
         if raw:
             raw_meta = datparser_core.read_raw_meta(raw)
-            session_id = _text(raw_meta.get("session_id"))
-            return _rawdata_created(raw, raw_meta, session_id)
+            exp_id = _text(raw_meta.get("exp_id"))
+            return _rawdata_created(raw, raw_meta, exp_id)
     except (OSError, json.JSONDecodeError, ValueError):
         pass
     return ""
@@ -111,7 +111,7 @@ def _data_created(root: Path, path: Path) -> str:
 
 def raw_entry(root: Path, path: Path) -> dict[str, object]:
     rel = datagen_core.relative_text(path, root)
-    parts: dict[str, object] = {"material": "", "sample": "", "measurement": "", "session": ""}
+    parts: dict[str, object] = {"material": "", "sample": "", "measurement": "", "exp": ""}
     metadata: dict[str, Any] = {}
     try:
         context = datagen_core.build_source_context(root, path, source_name=datagen_core.source_record_name(root, path))
@@ -119,7 +119,7 @@ def raw_entry(root: Path, path: Path) -> dict[str, object]:
             "material": context.material_id,
             "sample": context.sample_id,
             "measurement": context.kind,
-            "session": context.session_id,
+            "exp": context.exp_id,
         }
     except Exception as exc:
         _log.debug("build_source_context failed for %s: %s", path, exc)
@@ -133,7 +133,7 @@ def raw_entry(root: Path, path: Path) -> dict[str, object]:
         "path": rel,
         "file": path.name,
         "display_name": display_name,
-        "created": _rawdata_created(path, metadata, _text(parts.get("session"))),
+        "created": _rawdata_created(path, metadata, _text(parts.get("exp"))),
         "dependance": _conditions_sweep_text(metadata),
         "fixed": _conditions_fixed_text(metadata),
         **parts,
@@ -142,7 +142,7 @@ def raw_entry(root: Path, path: Path) -> dict[str, object]:
 
 def data_entry(root: Path, path: Path) -> dict[str, object]:
     rel = datagen_core.relative_text(path, root)
-    parts: dict[str, object] = {"material": "", "sample": "", "measurement": "", "session": ""}
+    parts: dict[str, object] = {"material": "", "sample": "", "measurement": "", "exp": ""}
     raw_source = ""
     display_name = path.parent.name
     dependance = ""
@@ -153,7 +153,7 @@ def data_entry(root: Path, path: Path) -> dict[str, object]:
             "material": context.material_id,
             "sample": context.sample_id,
             "measurement": context.kind,
-            "session": context.session_id,
+            "exp": context.exp_id,
         }
     except Exception as exc:
         _log.debug("build_source_context failed for %s: %s", path, exc)
@@ -254,27 +254,26 @@ def experiment_entries(root: Path) -> list[dict[str, object]]:
     entries: list[dict[str, object]] = []
     for meta_path in _experiment_metadata_paths(root):
         metadata = datagen_core.load_optional_json(meta_path)
-        session_id = meta_path.parent.name
-        display_name = _first_text(metadata.get("display_name"), session_id)
-        # Derive material/sample/type from rawdata belonging to this session
-        session_raws = [item for item in raw_entries if item.get("session") == session_id]
-        material = _first_text(*(str(item.get("material", "")) for item in session_raws))
-        sample = _first_text(*(str(item.get("sample", "")) for item in session_raws))
-        mtype = _first_text(*(str(item.get("measurement", "")) for item in session_raws))
+        exp_id = meta_path.parent.name
+        display_name = _first_text(metadata.get("display_name"), exp_id)
+        exp_raws = [item for item in raw_entries if item.get("exp") == exp_id]
+        material = _first_text(*(str(item.get("material", "")) for item in exp_raws))
+        sample = _first_text(*(str(item.get("sample", "")) for item in exp_raws))
+        mtype = _first_text(*(str(item.get("measurement", "")) for item in exp_raws))
         entries.append(
             {
-                "id": session_id,
+                "id": exp_id,
                 "display_name": display_name,
                 "path": datagen_core.relative_text(meta_path, root),
                 "material": material,
                 "sample": sample,
                 "type": mtype,
-                "samples": list({str(item.get("sample", "")) for item in session_raws if item.get("sample")}),
+                "samples": list({str(item.get("sample", "")) for item in exp_raws if item.get("sample")}),
                 "start_date": _text(metadata.get("start_date")),
                 "end_date": _text(metadata.get("end_date")),
-                "time": record_time(metadata, metadata, session_id),
-                "raw_count": len(session_raws),
-                "data_count": sum(1 for item in data_entries if item.get("session") == session_id),
+                "time": record_time(metadata, metadata, exp_id),
+                "raw_count": len(exp_raws),
+                "data_count": sum(1 for item in data_entries if item.get("exp") == exp_id),
             }
         )
     return entries
@@ -311,20 +310,20 @@ def sample_detail(root: Path, sample_id: str) -> dict[str, object]:
     }
 
 
-def experiment_detail(root: Path, session_id: str) -> dict[str, object]:
-    record_dir = root / datagen_core.FLAT_EXP_DIR / session_id
+def experiment_detail(root: Path, exp_id: str) -> dict[str, object]:
+    record_dir = root / datagen_core.FLAT_EXP_DIR / exp_id
     metadata_path = record_dir / datagen_core.FLAT_METADATA_NAME
     metadata = datagen_core.load_json(metadata_path)
-    raw_links = [item for item in _raw_entries(root) if item.get("session") == session_id]
-    data_links = [item for item in _data_entries(root) if item.get("session") == session_id]
+    raw_links = [item for item in _raw_entries(root) if item.get("exp") == exp_id]
+    data_links = [item for item in _data_entries(root) if item.get("exp") == exp_id]
     sample_ids = list(dict.fromkeys(
         str(item["sample"]) for item in raw_links if item.get("sample")
     ))
     sample_entries_by_id = {str(item.get("id")): item for item in sample_entries(root)}
     sample_links = [sample_entries_by_id[sid] for sid in sample_ids if sid in sample_entries_by_id]
     return {
-        "id": session_id,
-        "display_name": _first_text(metadata.get("display_name"), session_id),
+        "id": exp_id,
+        "display_name": _first_text(metadata.get("display_name"), exp_id),
         "dir_path": datagen_core.relative_text(record_dir, root),
         "metadata_path": datagen_core.relative_text(metadata_path, root),
         "metadata": metadata,

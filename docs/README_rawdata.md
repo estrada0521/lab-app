@@ -15,7 +15,7 @@ GUI と pipeline が metadata 解決を始める起点は `rawdata/<rawdata_id>/
 少なくとも次を入れてください。
 
 - `sample_id`（`samples/000001/` のような 6桁 ID を参照）
-- `session_id`（`exp/000001/` のような 6桁 ID を参照）
+- `exp_id`（`exp/000001/` のような 6桁 ID を参照）
 - `kind`
 - `display_name`
 

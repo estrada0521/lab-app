@@ -231,25 +231,25 @@ class DatParserHandler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/raw-files":
                 raw_paths = core.discover_raw_files(self.server.db_root)
                 samples_idx = {e["id"]: e.get("display_name", e["id"]) for e in catalog.sample_entries(self.server.db_root)}
-                sessions_idx = {e["id"]: e.get("display_name", e["id"]) for e in catalog.experiment_entries(self.server.db_root)}
+                exps_idx = {e["id"]: e.get("display_name", e["id"]) for e in catalog.experiment_entries(self.server.db_root)}
                 self.send_json(
                     {
                         "files": [core.relative_text(path, self.server.db_root) for path in raw_paths],
                         "entries": [catalog.raw_entry(self.server.db_root, path) for path in raw_paths],
                         "samples_index": samples_idx,
-                        "sessions_index": sessions_idx,
+                        "exps_index": exps_idx,
                     }
                 )
             elif parsed.path == "/api/data-files":
                 data_paths = data_core.discover_data_files(self.server.db_root)
                 samples_idx = {e["id"]: e.get("display_name", e["id"]) for e in catalog.sample_entries(self.server.db_root)}
-                sessions_idx = {e["id"]: e.get("display_name", e["id"]) for e in catalog.experiment_entries(self.server.db_root)}
+                exps_idx = {e["id"]: e.get("display_name", e["id"]) for e in catalog.experiment_entries(self.server.db_root)}
                 self.send_json(
                     {
                         "files": [core.relative_text(path, self.server.db_root) for path in data_paths],
                         "entries": [catalog.data_entry(self.server.db_root, path) for path in data_paths],
                         "samples_index": samples_idx,
-                        "sessions_index": sessions_idx,
+                        "exps_index": exps_idx,
                     }
                 )
             elif parsed.path == "/api/samples":
@@ -262,8 +262,8 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 self.send_json({"entries": catalog.experiment_entries(self.server.db_root)})
             elif parsed.path == "/api/experiment":
                 query = parse_qs(parsed.query)
-                session_id = query.get("id", [""])[0]
-                self.send_json(catalog.experiment_detail(self.server.db_root, session_id))
+                exp_id = query.get("id", [""])[0]
+                self.send_json(catalog.experiment_detail(self.server.db_root, exp_id))
             elif parsed.path == "/api/analyses":
                 self.send_json({"entries": catalog.analysis_entries(self.server.db_root)})
             elif parsed.path == "/api/analysis":
@@ -402,11 +402,11 @@ class DatParserHandler(BaseHTTPRequestHandler):
                     self.send_json({"memo": "", "updated_at": None})
             elif parsed.path == "/api/experiment-doc":
                 query = parse_qs(parsed.query)
-                session_id = query.get("id", [""])[0]
-                doc_path = self.server.db_root / "exp" / session_id / "docs" / "main.md"
+                exp_id = query.get("id", [""])[0]
+                doc_path = self.server.db_root / "exp" / exp_id / "docs" / "main.md"
                 if doc_path.exists():
                     content = doc_path.read_text(encoding="utf-8")
-                    self.send_json({"content": content, "path": f"exp/{session_id}/docs/main.md"})
+                    self.send_json({"content": content, "path": f"exp/{exp_id}/docs/main.md"})
                 else:
                     self.send_json({"content": "", "path": None})
             else:
@@ -693,12 +693,12 @@ def _cascade_rename(root: Path, kind: str, old_id: str, new_id: str) -> dict:
 
         def _fix_exp(data, oid=old_id, nid=new_id):
             changed = False
-            if data.get("session_id") == oid:
-                data["session_id"] = nid
+            if data.get("exp_id") == oid:
+                data["exp_id"] = nid
                 changed = True
             exp = data.get("exp")
-            if isinstance(exp, dict) and exp.get("session_id") == oid:
-                exp["session_id"] = nid
+            if isinstance(exp, dict) and exp.get("exp_id") == oid:
+                exp["exp_id"] = nid
                 changed = True
             return changed
 
