@@ -30,7 +30,7 @@
 
 ## どんなパラメータを要求するか
 
-この calculator は rawdata metadata の `strain_calculation` から次を要求します。
+この calculator は host が解決した `context.resolved_params` として次を要求します。
 
 - `gauge_factor`
 - `amplifier_gain`

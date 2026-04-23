@@ -22,6 +22,22 @@ GUI と pipeline が metadata 解決を始める起点は `rawdata/<rawdata_id>/
 calculator が必要とする測定固有 parameter は、必要なら rawdata metadata に直接持たせます。
 parameter 解決は rawdata / sample / material を前提とし、exp metadata を calculator parameter source にはしません。
 
+calculator parameter は次の block にまとめます。
+
+```json
+{
+  "calc": {
+    "id": "strain_raw_v1",
+    "params": {},
+    "overrides": {}
+  }
+}
+```
+
+- `calc.id`: この rawdata に対して既定で想定する calculator
+- `calc.params`: rawdata-local な calculator input
+- `calc.overrides`: sample / material の canonical value を測定単位で明示上書きしたいときだけ使う場所
+
 `material_id` は任意項目です（`sample.metadata.json` から辿れる場合は省略可）。
 
 GUI 上の既定軸を与えたい場合は次も使えます。

@@ -436,7 +436,7 @@ def resolve_raw_source(root: Path, path: Path) -> Path | None:
                     for ext in ("*.csv", "*.dat"):
                         candidates = sorted(raw_dir.glob(ext))
                         if candidates:
-                            candidate = datagen_core.relative_text(candidates[0], root)
+                            candidate = relative_text(candidates[0], root)
                             break
         if not candidate:
             return _fallback_raw_source(current)

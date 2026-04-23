@@ -4,7 +4,7 @@ import csv
 import datetime as dt
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -26,9 +26,6 @@ RAWDATA_SAMPLE_OVERRIDE_KEYS = {
     "created_by",
     "synthesized_by",
     "provided_by",
-}
-RAWDATA_PARAMETER_KEYS = {
-    "strain_calculation",
 }
 RAWDATA_MATERIAL_OVERRIDE_KEYS = {
     "formula",
@@ -57,6 +54,28 @@ LEGACY_FIXED_KEY_MAP = {
     "angle": "angle",
 }
 
+GLOBAL_FALLBACK_PARAMS: dict[str, dict[str, Any]] = {
+    "mass_mg": {
+        "canonical_source": "sample",
+    },
+    "axis_family": {
+        "canonical_source": "sample",
+        "sample_keys": ["axis_family", "orientation"],
+        "sample_transform": "axis_family",
+    },
+    "molar_mass_g_per_mol": {
+        "canonical_source": "material",
+    },
+    "normalization_element": {
+        "canonical_source": "material",
+        "material_transform": "normalization_element",
+    },
+    "count_per_formula_unit": {
+        "canonical_source": "material",
+        "material_transform": "count_per_formula_unit",
+    },
+}
+
 
 @dataclass(frozen=True)
 class FilterContext:
@@ -70,14 +89,13 @@ class FilterContext:
     session_id: str
     session_dir: Path
     filter_id: str
+    raw_meta: dict[str, Any]
     material_meta: dict[str, Any]
     sample_meta: dict[str, Any]
-    parameter_meta: dict[str, Any]
-
-    @property
-    def session_meta(self) -> dict[str, Any]:
-        # Compatibility shim for older calculators. New code should use parameter_meta.
-        return self.parameter_meta
+    calc_id: str = ""
+    calc_params: dict[str, Any] = field(default_factory=dict)
+    calc_overrides: dict[str, Any] = field(default_factory=dict)
+    resolved_params: dict[str, Any] = field(default_factory=dict)
 
 
 def resolve_path(root: Path, value: str) -> Path:
@@ -151,6 +169,106 @@ def _first_text(*values: Any) -> str:
         if text:
             return text
     return ""
+
+
+def _axis_family_from_orientation(orientation: Any) -> str:
+    text = str(orientation or "").strip()
+    if text == "110":
+        return "001"
+    if text:
+        return text
+    return ""
+
+
+def _material_normalization_element(material_meta: dict[str, Any]) -> str:
+    normalization = material_meta.get("normalization")
+    if isinstance(normalization, dict):
+        value = _first_text(normalization.get("magnetization_per"))
+        if value:
+            return value
+    return _first_text(material_meta.get("magnetic_element"))
+
+
+def _material_count_per_formula_unit(material_meta: dict[str, Any]) -> Any:
+    normalization = material_meta.get("normalization")
+    if isinstance(normalization, dict) and normalization.get("count_per_formula_unit") not in (None, "", []):
+        return normalization.get("count_per_formula_unit")
+    per_element = _material_normalization_element(material_meta)
+    atoms = material_meta.get("atoms_per_formula_unit")
+    if per_element and isinstance(atoms, dict):
+        return atoms.get(per_element)
+    return None
+
+
+def calc_block(raw_meta: dict[str, Any]) -> dict[str, Any]:
+    payload = raw_meta.get("calc")
+    return dict(payload) if isinstance(payload, dict) else {}
+
+
+def _source_value_from_spec(param_name: str, spec: dict[str, Any], sample_meta: dict[str, Any], material_meta: dict[str, Any]) -> tuple[Any, str] | None:
+    source = str(spec.get("canonical_source") or "").strip()
+    if source == "sample":
+        keys = spec.get("sample_keys") if isinstance(spec.get("sample_keys"), list) else [param_name]
+        for key in keys:
+            if key in sample_meta:
+                value = sample_meta[key]
+                if spec.get("sample_transform") == "axis_family":
+                    value = _axis_family_from_orientation(value)
+                if value not in (None, "", []):
+                    return value, "sample"
+        return None
+    if source == "material":
+        transform = str(spec.get("material_transform") or "").strip()
+        if transform == "normalization_element":
+            value = _material_normalization_element(material_meta)
+            if value:
+                return value, "material"
+            return None
+        if transform == "count_per_formula_unit":
+            value = _material_count_per_formula_unit(material_meta)
+            if value not in (None, "", []):
+                return value, "material"
+            return None
+        keys = spec.get("material_keys") if isinstance(spec.get("material_keys"), list) else [param_name]
+        for key in keys:
+            if key in material_meta:
+                value = material_meta[key]
+                if value not in (None, "", []):
+                    return value, "material"
+        return None
+    return None
+
+
+def resolve_param(param_name: str, raw_meta: dict[str, Any], sample_meta: dict[str, Any] | None = None, material_meta: dict[str, Any] | None = None) -> tuple[Any, str]:
+    sample_meta = sample_meta or {}
+    material_meta = material_meta or {}
+    calc = calc_block(raw_meta)
+    overrides = calc.get("overrides") if isinstance(calc.get("overrides"), dict) else {}
+    params = calc.get("params") if isinstance(calc.get("params"), dict) else {}
+
+    if param_name in overrides:
+        return overrides[param_name], "rawdata.calc.overrides"
+    if param_name in params:
+        return params[param_name], "rawdata.calc.params"
+
+    spec = GLOBAL_FALLBACK_PARAMS.get(param_name)
+    if spec is None:
+        raise KeyError(param_name)
+    resolved = _source_value_from_spec(param_name, spec, sample_meta, material_meta)
+    if resolved is None:
+        raise KeyError(param_name)
+    return resolved
+
+
+def resolve_required_params(context: FilterContext, required_params: list[str]) -> dict[str, Any]:
+    resolved: dict[str, Any] = {}
+    for name in required_params:
+        resolved[name] = resolve_param(name, context.raw_meta, context.sample_meta, context.material_meta)[0]
+    return resolved
+
+
+def with_resolved_params(context: FilterContext, resolved_params: dict[str, Any]) -> FilterContext:
+    return replace(context, resolved_params=dict(resolved_params))
 
 
 def metadata_kind(payload: dict[str, Any]) -> str:
@@ -335,7 +453,6 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
             required=False,
         )
 
-    parameter_meta: dict[str, Any] = {}
     if isinstance(source_meta.get("material"), dict):
         material_meta = _merge_metadata(material_meta, source_meta["material"])
     material_meta = _merge_metadata(material_meta, _top_level_overrides(source_meta, RAWDATA_MATERIAL_OVERRIDE_KEYS))
@@ -344,8 +461,10 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
         sample_meta = _merge_metadata(sample_meta, source_meta["sample"])
     sample_meta = _merge_metadata(sample_meta, _top_level_overrides(source_meta, RAWDATA_SAMPLE_OVERRIDE_KEYS))
     sample_meta = _merge_metadata(sample_meta, _top_level_overrides(rawdata_meta, RAWDATA_SAMPLE_OVERRIDE_KEYS))
-    parameter_meta = _merge_metadata(parameter_meta, _top_level_overrides(rawdata_meta, RAWDATA_PARAMETER_KEYS))
-    parameter_meta = _merge_metadata(parameter_meta, _top_level_overrides(source_meta, RAWDATA_PARAMETER_KEYS))
+    raw_meta = rawdata_meta if rawdata_meta else source_meta
+    calc = calc_block(raw_meta)
+    calc_params = dict(calc.get("params")) if isinstance(calc.get("params"), dict) else {}
+    calc_overrides = dict(calc.get("overrides")) if isinstance(calc.get("overrides"), dict) else {}
 
     filter_id = source_name or source_record_name(root, source_path) or source_path.stem
     material_dir = material_meta_path.parent if material_meta_path else root / FLAT_DB_DIR / FLAT_DB_MATERIALS_DIR / material_id
@@ -362,9 +481,12 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
         session_id=session_id,
         session_dir=session_dir,
         filter_id=filter_id,
+        raw_meta=raw_meta,
         material_meta=material_meta,
         sample_meta=sample_meta,
-        parameter_meta=parameter_meta,
+        calc_id=str(calc.get("id") or "").strip(),
+        calc_params=calc_params,
+        calc_overrides=calc_overrides,
     )
 
 

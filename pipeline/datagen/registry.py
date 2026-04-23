@@ -13,7 +13,18 @@ from typing import Any
 
 _log = logging.getLogger(__name__)
 
-from .core import FilterContext, build_source_context, data_output_paths, next_data_id, read_metadata, relative_text, resolve_path, write_metadata
+from .core import (
+    FilterContext,
+    build_source_context,
+    data_output_paths,
+    next_data_id,
+    read_metadata,
+    relative_text,
+    resolve_param,
+    resolve_path,
+    with_resolved_params,
+    write_metadata,
+)
 
 
 @dataclass(frozen=True)
@@ -186,6 +197,25 @@ def list_calculators(root: Path, *, include_readme: bool = False) -> list[dict[s
     return [_entry_payload(root, entry, include_readme=include_readme) for entry in _calculator_entries(root)]
 
 
+def _required_param_names(entry: CalculatorEntry) -> list[str]:
+    names: list[str] = []
+    for item in entry.required_parameters_detail:
+        name = str(item.get("name") or "").strip()
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+def _context_for_entry(entry: CalculatorEntry, context: FilterContext) -> FilterContext:
+    resolved: dict[str, Any] = {}
+    for name in _required_param_names(entry):
+        try:
+            resolved[name] = resolve_param(name, context.raw_meta, context.sample_meta, context.material_meta)[0]
+        except KeyError:
+            continue
+    return with_resolved_params(context, resolved)
+
+
 def _inspect_calculator(
     entry: CalculatorEntry,
     context: FilterContext,
@@ -195,14 +225,15 @@ def _inspect_calculator(
     source_name: str,
     calculator_options: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    prepared_context = _context_for_entry(entry, context)
     module = _handler(entry)
     inspect_fn = getattr(module, "inspect_source", None)
     if callable(inspect_fn):
-        payload = inspect_fn(context, header, rows, source_name=source_name, calculator_options=calculator_options or {})
+        payload = inspect_fn(prepared_context, header, rows, source_name=source_name, calculator_options=calculator_options or {})
         if not isinstance(payload, dict):
             raise ValueError(f"inspect_source must return a dict: {entry.id}")
     else:
-        analysis = module.analyze_source(context, header, rows, source_name=source_name, calculator_options=calculator_options or {})
+        analysis = module.analyze_source(prepared_context, header, rows, source_name=source_name, calculator_options=calculator_options or {})
         payload = {
             "ready": True,
             "analysis": analysis,
@@ -221,6 +252,7 @@ def _inspect_calculator(
         "required_source_columns": [str(item) for item in payload.get("required_source_columns", analysis.get("required_source_columns", []) if analysis else [])],
         "parameters": payload.get("parameters", analysis.get("parameters", {}) if analysis else {}),
         "analysis": analysis,
+        "resolved_params": dict(prepared_context.resolved_params),
     }
 
 
@@ -327,9 +359,10 @@ def create_data_for_context(
         missing = [*selected_assessment.get("missing_columns", []), *selected_assessment.get("missing_metadata", []), *selected_assessment.get("errors", [])]
         details = "; ".join(missing) if missing else "dependencies are missing"
         raise ValueError(f"calculator is not ready: {calculator.id} ({details})")
+    prepared_context = with_resolved_params(context, selected_assessment.get("resolved_params", {}))
     data_id = output_name or next_data_id(context.repo_root)
     result = _handler(calculator).create_data(
-        context,
+        prepared_context,
         output_name=data_id,
         overwrite=overwrite,
         calculator_options=calculator_options or {},
