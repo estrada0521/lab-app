@@ -160,7 +160,7 @@ function updateMemoButtons() {
 async function loadMemo(id) {
   if (!memoInput || !id) { memoOriginal = ""; memoUpdatedAt = null; if (memoInput) { memoInput.value = ""; } updateMemoButtons(); return; }
   try {
-    const payload = await apiJson(`/api/record-memo?kind=${memoKind()}&id=${encodeURIComponent(id)}`);
+    const payload = await apiJson(`/api/memo?kind=${memoKind()}&id=${encodeURIComponent(id)}`);
     memoOriginal = payload.memo || "";
     memoUpdatedAt = payload.updated_at || null;
     memoInput.value = memoOriginal;
@@ -176,7 +176,7 @@ async function saveMemo() {
   updateMemoButtons();
   if (memoStatusEl) { memoStatusEl.textContent = "saving…"; memoStatusEl.className = "memo-status info"; }
   try {
-    const payload = await apiJson("/api/record-memo", {
+    const payload = await apiJson("/api/memo", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({kind: memoKind(), id: currentId, memo: memoInput.value}),

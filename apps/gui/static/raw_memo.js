@@ -1,7 +1,6 @@
 // Reusable rawdata memo panel. The panel can load/save the memo either for a
-// direct rawdata path (/api/raw-meta), for a derived path whose memo
-// lives on the upstream rawdata (/api/raw-meta-for), or for a generated data
-// file using its own metadata (/api/data-memo).
+// direct rawdata path, for a derived path whose memo lives on the upstream
+// rawdata, or for a generated data file using its own metadata.
 
 function createRawMemoPanel(options) {
   const input = options.input;
@@ -69,14 +68,8 @@ function createRawMemoPanel(options) {
     currentPath = path || "";
     currentMode = modeOverride || mode;
     if (!currentPath || !input) { reset(""); return; }
-    let url;
-    if (currentMode === "data") {
-      url = "/api/data-memo?path=" + encodeURIComponent(currentPath);
-    } else if (currentMode === "upstream") {
-      url = "/api/raw-meta-for?path=" + encodeURIComponent(currentPath);
-    } else {
-      url = "/api/raw-meta?path=" + encodeURIComponent(currentPath);
-    }
+    const kind = currentMode === "data" ? "data" : currentMode === "upstream" ? "rawdata-for" : "rawdata";
+    const url = `/api/memo?kind=${encodeURIComponent(kind)}&path=${encodeURIComponent(currentPath)}`;
     try {
       const payload = await apiJson(url);
       original = payload.memo || "";
@@ -104,18 +97,11 @@ function createRawMemoPanel(options) {
     buttonsState();
     setStatus("saving…", "info");
     try {
-      let url;
-      if (currentMode === "data") {
-        url = "/api/data-memo";
-      } else if (currentMode === "upstream") {
-        url = "/api/raw-meta-for";
-      } else {
-        url = "/api/raw-meta";
-      }
-      const payload = await apiJson(url, {
+      const kind = currentMode === "data" ? "data" : currentMode === "upstream" ? "rawdata-for" : "rawdata";
+      const payload = await apiJson("/api/memo", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({path: currentPath, memo: input.value}),
+        body: JSON.stringify({kind, path: currentPath, memo: input.value}),
       });
       original = payload.memo || "";
       updatedAt = payload.updated_at || null;

@@ -30,6 +30,7 @@ STATIC_TYPES = {
     "calculators.html": "text/html; charset=utf-8",
     "records.html": "text/html; charset=utf-8",
     "analysis.html": "text/html; charset=utf-8",
+    "build.html": "text/html; charset=utf-8",
     "datparser.css": "text/css; charset=utf-8",
     "datparser.js": "application/javascript; charset=utf-8",
     "datagen.css": "text/css; charset=utf-8",
@@ -43,6 +44,7 @@ STATIC_TYPES = {
     "raw_memo.js": "application/javascript; charset=utf-8",
     "markdown_render.js": "application/javascript; charset=utf-8",
     "analysis.js": "application/javascript; charset=utf-8",
+    "build.js": "application/javascript; charset=utf-8",
 }
 STATIC_VERSION = str(
     max(path.stat().st_mtime_ns for path in STATIC_DIR.iterdir() if path.is_file())
@@ -128,6 +130,150 @@ def _is_raw_source_path(root: Path, path: Path) -> bool:
     return rel.startswith("rawdata/") or path.parent.name == "rawdata"
 
 
+def _record_subdir(kind: str) -> str:
+    normalized = kind.strip().lower()
+    if normalized == "sample":
+        return "samples"
+    if normalized in {"exp", "experiment"}:
+        return "exp"
+    raise ValueError(f"unknown record kind: {kind}")
+
+
+def _record_dir(root: Path, kind: str, record_id: str) -> Path:
+    normalized_id = record_id.strip()
+    if not normalized_id or any(c in normalized_id for c in ("/", "\\", "\0")) or normalized_id in {".", ".."}:
+        raise ValueError("invalid id")
+    return root / _record_subdir(kind) / normalized_id
+
+
+def _entity_id(value: str) -> str:
+    normalized = value.strip()
+    if not normalized or any(c in normalized for c in ("/", "\\", "\0")) or normalized in {".", ".."}:
+        raise ValueError("invalid id")
+    return normalized
+
+
+def _read_json_dict(path: Path) -> dict[str, object]:
+    with open(path, encoding="utf-8") as f:
+        payload = json.load(f)
+    if not isinstance(payload, dict):
+        raise ValueError(f"metadata must be a JSON object: {path}")
+    return payload
+
+
+def _memo_payload_from_meta(meta_path: Path, *, updated_key: str) -> dict[str, object]:
+    if not meta_path.exists():
+        return {"memo": "", "updated_at": None}
+    meta = _read_json_dict(meta_path)
+    return {"memo": str(meta.get("memo", "") or ""), "updated_at": meta.get(updated_key) or None}
+
+
+def _write_memo_meta(meta_path: Path, memo: str, *, updated_key: str) -> dict[str, object]:
+    meta = _read_json_dict(meta_path) if meta_path.exists() else {}
+    body = str(memo).strip("\n").rstrip()
+    updated_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    if body:
+        meta["memo"] = body
+        meta[updated_key] = updated_at
+    else:
+        meta.pop("memo", None)
+        meta.pop(updated_key, None)
+    meta_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2, sort_keys=True)
+        f.write("\n")
+    return {"memo": body, "updated_at": updated_at if body else None}
+
+
+def _memo_request_from_query(query: dict[str, list[str]]) -> tuple[str, str, str]:
+    return (
+        query.get("kind", [""])[0],
+        query.get("id", [""])[0],
+        query.get("path", [""])[0],
+    )
+
+
+def _memo_request_from_payload(payload: dict[str, object]) -> tuple[str, str, str, str]:
+    return (
+        str(payload.get("kind", "")),
+        str(payload.get("id", "")),
+        str(payload.get("path", "")),
+        str(payload.get("memo", "")),
+    )
+
+
+def _memo_get(root: Path, *, kind: str, record_id: str = "", path_text: str = "") -> dict[str, object]:
+    normalized_kind = kind.strip().lower()
+    if normalized_kind == "rawdata":
+        path = core.path_from_client(root, path_text)
+        payload = core.read_raw_meta(path)
+        payload["raw_path"] = core.relative_text(path, root)
+        return payload
+    if normalized_kind in {"rawdata-for", "upstream"}:
+        path = core.path_from_client(root, path_text)
+        raw_path = core.resolve_raw_source(root, path)
+        if raw_path is None:
+            return {"memo": "", "updated_at": None, "raw_path": None, "resolved": False}
+        payload = core.read_raw_meta(raw_path)
+        payload["raw_path"] = core.relative_text(raw_path, root)
+        payload["resolved"] = True
+        return payload
+    if normalized_kind == "data":
+        path = core.path_from_client(root, path_text)
+        return _memo_payload_from_meta(path.parent / "metadata.json", updated_key="memo_updated_at")
+    if normalized_kind in {"sample", "exp", "experiment"}:
+        return _memo_payload_from_meta(_record_dir(root, normalized_kind, record_id) / "metadata.json", updated_key="memo_updated_at")
+    if normalized_kind == "analysis":
+        entity_id = _entity_id(record_id)
+        return _memo_payload_from_meta(root / "analysis" / entity_id / "metadata.json", updated_key="memo_updated_at")
+    if normalized_kind == "build":
+        entity_id = _entity_id(record_id)
+        return _memo_payload_from_meta(root / "build" / entity_id / "metadata.json", updated_key="memo_updated_at")
+    raise ValueError(f"unknown memo kind: {kind}")
+
+
+def _memo_post(root: Path, *, kind: str, record_id: str = "", path_text: str = "", memo: str = "") -> dict[str, object]:
+    normalized_kind = kind.strip().lower()
+    if normalized_kind == "rawdata":
+        path = core.path_from_client(root, path_text)
+        result = core.write_raw_meta(path, memo)
+        result["raw_path"] = core.relative_text(path, root)
+        return result
+    if normalized_kind in {"rawdata-for", "upstream"}:
+        path = core.path_from_client(root, path_text)
+        raw_path = core.resolve_raw_source(root, path)
+        if raw_path is None:
+            raise ValueError("rawdata source could not be resolved")
+        result = core.write_raw_meta(raw_path, memo)
+        result["raw_path"] = core.relative_text(raw_path, root)
+        result["resolved"] = True
+        return result
+    if normalized_kind == "data":
+        path = core.path_from_client(root, path_text)
+        meta_path = path.parent / "metadata.json"
+        if not meta_path.exists():
+            raise FileNotFoundError("data metadata not found")
+        return _write_memo_meta(meta_path, memo, updated_key="memo_updated_at")
+    if normalized_kind in {"sample", "exp", "experiment"}:
+        record_dir = _record_dir(root, normalized_kind, record_id)
+        if not record_dir.exists():
+            raise FileNotFoundError("record not found")
+        return _write_memo_meta(record_dir / "metadata.json", memo, updated_key="memo_updated_at")
+    if normalized_kind == "analysis":
+        entity_id = _entity_id(record_id)
+        meta_path = root / "analysis" / entity_id / "metadata.json"
+        if not meta_path.exists():
+            raise FileNotFoundError("analysis project not found")
+        return _write_memo_meta(meta_path, memo, updated_key="memo_updated_at")
+    if normalized_kind == "build":
+        entity_id = _entity_id(record_id)
+        meta_path = root / "build" / entity_id / "metadata.json"
+        if not meta_path.exists():
+            raise FileNotFoundError("build not found")
+        return _write_memo_meta(meta_path, memo, updated_key="memo_updated_at")
+    raise ValueError(f"unknown memo kind: {kind}")
+
+
 class DatParserHTTPServer(ThreadingHTTPServer):
     db_root: Path
 
@@ -201,6 +347,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
             ".csv": "text/csv; charset=utf-8",
             ".json": "application/json; charset=utf-8",
             ".log": "text/plain; charset=utf-8",
+            ".pdf": "application/pdf",
             ".jpg": "image/jpeg",
             ".jpeg": "image/jpeg",
             ".png": "image/png",
@@ -226,6 +373,8 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 self.send_records_html("experiments", "Experiments")
             elif parsed.path in {"/analysis", "/analysis/"}:
                 self.send_html_template("analysis.html")
+            elif parsed.path in {"/build", "/build/"}:
+                self.send_html_template("build.html")
             elif parsed.path.startswith("/static/"):
                 self.send_static(parsed.path)
             elif parsed.path == "/api/raw-files":
@@ -270,6 +419,12 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 query = parse_qs(parsed.query)
                 project_id = query.get("id", [""])[0]
                 self.send_json(catalog.analysis_detail(self.server.db_root, project_id))
+            elif parsed.path == "/api/builds":
+                self.send_json({"entries": catalog.build_entries(self.server.db_root)})
+            elif parsed.path == "/api/build":
+                query = parse_qs(parsed.query)
+                build_id = query.get("id", [""])[0]
+                self.send_json(catalog.build_detail(self.server.db_root, build_id))
             elif parsed.path == "/api/meta-ref":
                 query = parse_qs(parsed.query)
                 ref_kind = query.get("kind", [""])[0]
@@ -352,23 +507,6 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 query = parse_qs(parsed.query)
                 path = core.path_from_client(self.server.db_root, query.get("path", [""])[0])
                 self.send_repo_file(path)
-            elif parsed.path == "/api/raw-meta":
-                query = parse_qs(parsed.query)
-                path = core.path_from_client(self.server.db_root, query.get("path", [""])[0])
-                payload = core.read_raw_meta(path)
-                payload["raw_path"] = core.relative_text(path, self.server.db_root)
-                self.send_json(payload)
-            elif parsed.path == "/api/raw-meta-for":
-                query = parse_qs(parsed.query)
-                path = core.path_from_client(self.server.db_root, query.get("path", [""])[0])
-                raw_path = core.resolve_raw_source(self.server.db_root, path)
-                if raw_path is None:
-                    self.send_json({"memo": "", "updated_at": None, "raw_path": None, "resolved": False})
-                else:
-                    payload = core.read_raw_meta(raw_path)
-                    payload["raw_path"] = core.relative_text(raw_path, self.server.db_root)
-                    payload["resolved"] = True
-                    self.send_json(payload)
             elif parsed.path == "/api/data-meta":
                 query = parse_qs(parsed.query)
                 path = core.path_from_client(self.server.db_root, query.get("path", [""])[0])
@@ -378,28 +516,10 @@ class DatParserHandler(BaseHTTPRequestHandler):
                     return
                 with open(meta_path, encoding="utf-8") as f:
                     self.send_json(json.load(f))
-            elif parsed.path == "/api/data-memo":
+            elif parsed.path == "/api/memo":
                 query = parse_qs(parsed.query)
-                path = core.path_from_client(self.server.db_root, query.get("path", [""])[0])
-                meta_path = path.parent / "metadata.json"
-                if meta_path.exists():
-                    with open(meta_path, encoding="utf-8") as f:
-                        meta = json.load(f)
-                    self.send_json({"memo": meta.get("memo", "") or "", "updated_at": meta.get("memo_updated_at") or None})
-                else:
-                    self.send_json({"memo": "", "updated_at": None})
-            elif parsed.path == "/api/record-memo":
-                query = parse_qs(parsed.query)
-                kind = query.get("kind", [""])[0]
-                record_id = query.get("id", [""])[0]
-                record_dir = self.server.db_root / ("samples" if kind == "sample" else "exp") / record_id
-                meta_path = record_dir / "metadata.json"
-                if meta_path.exists():
-                    with open(meta_path, encoding="utf-8") as f:
-                        meta = json.load(f)
-                    self.send_json({"memo": meta.get("memo", "") or "", "updated_at": meta.get("memo_updated_at") or None})
-                else:
-                    self.send_json({"memo": "", "updated_at": None})
+                kind, record_id, path_text = _memo_request_from_query(query)
+                self.send_json(_memo_get(self.server.db_root, kind=kind, record_id=record_id, path_text=path_text))
             elif parsed.path == "/api/experiment-doc":
                 query = parse_qs(parsed.query)
                 exp_id = query.get("id", [""])[0]
@@ -411,6 +531,8 @@ class DatParserHandler(BaseHTTPRequestHandler):
                     self.send_json({"content": "", "path": None})
             else:
                 self.send_json({"error": "not found"}, HTTPStatus.NOT_FOUND)
+        except FileNotFoundError as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.NOT_FOUND)
         except Exception as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
 
@@ -446,93 +568,15 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 response = _data_result_payload(self.server.db_root, result)
                 response["direct_rawdata"] = {"source": core.relative_text(source_path, self.server.db_root)}
                 self.send_json(response)
-            elif parsed.path == "/api/raw-meta":
-                path = core.path_from_client(self.server.db_root, str(payload.get("path", "")))
-                memo = str(payload.get("memo", ""))
-                result = core.write_raw_meta(path, memo)
-                result["raw_path"] = core.relative_text(path, self.server.db_root)
-                self.send_json(result)
-            elif parsed.path == "/api/raw-meta-for":
-                path = core.path_from_client(self.server.db_root, str(payload.get("path", "")))
-                raw_path = core.resolve_raw_source(self.server.db_root, path)
-                if raw_path is None:
-                    self.send_json({"error": "rawdata source could not be resolved"}, HTTPStatus.BAD_REQUEST)
-                    return
-                memo = str(payload.get("memo", ""))
-                result = core.write_raw_meta(raw_path, memo)
-                result["raw_path"] = core.relative_text(raw_path, self.server.db_root)
-                result["resolved"] = True
-                self.send_json(result)
-            elif parsed.path == "/api/record-memo":
-                kind = str(payload.get("kind", ""))
-                record_id = str(payload.get("id", ""))
-                memo = str(payload.get("memo", "")).strip("\n").rstrip()
-                record_dir = self.server.db_root / ("samples" if kind == "sample" else "exp") / record_id
-                meta_path = record_dir / "metadata.json"
-                if meta_path.exists():
-                    with open(meta_path, encoding="utf-8") as f:
-                        meta = json.load(f)
-                else:
-                    meta = {}
-                if memo:
-                    meta["memo"] = memo
-                else:
-                    meta.pop("memo", None)
-                    meta.pop("memo_updated_at", None)
-                updated_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-                if memo:
-                    meta["memo_updated_at"] = updated_at
-                record_dir.mkdir(parents=True, exist_ok=True)
-                with open(meta_path, "w", encoding="utf-8") as f:
-                    json.dump(meta, f, indent=2, ensure_ascii=False)
-                    f.write("\n")
-                self.send_json({"memo": memo, "updated_at": updated_at if memo else None})
-            elif parsed.path == "/api/data-memo":
-                path = core.path_from_client(self.server.db_root, str(payload.get("path", "")))
-                memo = str(payload.get("memo", "")).strip("\n").rstrip()
-                meta_path = path.parent / "metadata.json"
-                if not meta_path.exists():
-                    self.send_json({"error": "data metadata not found"}, HTTPStatus.NOT_FOUND)
-                    return
-                with open(meta_path, encoding="utf-8") as f:
-                    meta = json.load(f)
-                updated_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-                if memo:
-                    meta["memo"] = memo
-                    meta["memo_updated_at"] = updated_at
-                else:
-                    meta.pop("memo", None)
-                    meta.pop("memo_updated_at", None)
-                with open(meta_path, "w", encoding="utf-8") as f:
-                    json.dump(meta, f, ensure_ascii=False, indent=2, sort_keys=True)
-                    f.write("\n")
-                self.send_json({"memo": memo, "updated_at": updated_at if memo else None})
-            elif parsed.path == "/api/analysis-memo":
-                project_id = str(payload.get("id", ""))
-                memo = str(payload.get("memo", "")).strip("\n").rstrip()
-                meta_path = self.server.db_root / "analysis" / project_id / "metadata.json"
-                if not meta_path.exists():
-                    self.send_json({"error": "analysis project not found"}, HTTPStatus.NOT_FOUND)
-                    return
-                with open(meta_path, encoding="utf-8") as f:
-                    meta = json.load(f)
-                updated_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-                if memo:
-                    meta["memo"] = memo
-                    meta["memo_updated_at"] = updated_at
-                else:
-                    meta.pop("memo", None)
-                    meta.pop("memo_updated_at", None)
-                with open(meta_path, "w", encoding="utf-8") as f:
-                    json.dump(meta, f, ensure_ascii=False, indent=2)
-                    f.write("\n")
-                self.send_json({"memo": memo, "updated_at": updated_at if memo else None})
+            elif parsed.path == "/api/memo":
+                kind, record_id, path_text, memo = _memo_request_from_payload(payload)
+                self.send_json(_memo_post(self.server.db_root, kind=kind, record_id=record_id, path_text=path_text, memo=memo))
             elif parsed.path == "/api/rename":
                 kind = str(payload.get("kind", ""))
                 old_id = str(payload.get("old_id", ""))
                 new_id = str(payload.get("new_id", "")).strip()
                 new_name = str(payload.get("new_name", "")).strip()
-                if kind in {"rawdata", "data", "sample", "exp", "analysis", "calc"} and old_id and new_name:
+                if kind in {"rawdata", "data", "sample", "exp", "analysis", "build", "calc"} and old_id and new_name:
                     result = _update_record_display_name(self.server.db_root, kind, old_id, new_name)
                     status = HTTPStatus.OK if not result.get("error") else HTTPStatus.BAD_REQUEST
                     self.send_json(result, status)
@@ -571,15 +615,14 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 if not rel_path:
                     self.send_json({"error": "path required"}, HTTPStatus.BAD_REQUEST)
                     return
-                abs_path = (self.server.db_root / rel_path).resolve()
-                if not abs_path.exists():
-                    self.send_json({"error": "file not found"}, HTTPStatus.NOT_FOUND)
-                    return
+                abs_path = core.path_from_client(self.server.db_root, rel_path)
                 app = str(payload.get("app", "Antigravity")).strip() or "Antigravity"
                 subprocess.Popen(["open", "-a", app, str(abs_path)])
                 self.send_json({"ok": True, "path": rel_path, "app": app})
             else:
                 self.send_json({"error": "not found"}, HTTPStatus.NOT_FOUND)
+        except FileNotFoundError as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.NOT_FOUND)
         except Exception as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
 
@@ -619,6 +662,7 @@ def _update_record_display_name(root: Path, kind: str, record_id: str, display_n
         else "samples" if kind == "sample"
         else "exp" if kind == "exp"
         else "analysis" if kind == "analysis"
+        else "build" if kind == "build"
         else ""
     )
     if any(c in display_name for c in ("/", "\\", "\0")):
@@ -760,6 +804,29 @@ def _cascade_rename(root: Path, kind: str, old_id: str, new_id: str) -> dict:
             return {"error": f"analysis/{new_id} already exists"}
         old_dir.rename(new_dir)
 
+        def _fix_analysis_ref(data, oid=old_id, nid=new_id):
+            refs = data.get("source_analysis")
+            if not isinstance(refs, list):
+                return False
+            new_refs = [nid if r == oid else r for r in refs]
+            if new_refs != refs:
+                data["source_analysis"] = new_refs
+                return True
+            return False
+
+        for meta in _iter_metadata_files(root, "build"):
+            if _update_json_file(meta, _fix_analysis_ref):
+                updated += 1
+
+    elif kind == "build":
+        old_dir = root / "build" / old_id
+        new_dir = root / "build" / new_id
+        if not old_dir.exists():
+            return {"error": f"build/{old_id} not found"}
+        if new_dir.exists():
+            return {"error": f"build/{new_id} already exists"}
+        old_dir.rename(new_dir)
+
     elif kind == "calc":
         old_dir = root / "calculators" / old_id
         new_dir = root / "calculators" / new_id
@@ -815,6 +882,27 @@ def _analysis_stale_refs_for_data(root: Path, data_id: str) -> dict[str, object]
     return {"analysis_ids": analysis_ids, "missing_refs": missing_refs}
 
 
+def _build_stale_refs_for_analysis(root: Path, analysis_id: str) -> dict[str, object]:
+    build_ids: list[str] = []
+    missing_refs = 0
+    for meta_path in _iter_metadata_files(root, "build"):
+        try:
+            with open(meta_path, encoding="utf-8") as f:
+                meta = json.load(f)
+        except (OSError, json.JSONDecodeError) as exc:
+            _log.warning("Skipping unreadable build metadata %s: %s", meta_path, exc)
+            continue
+        refs = meta.get("source_analysis")
+        if not isinstance(refs, list):
+            continue
+        build_id = meta_path.parent.name
+        project_missing = sum(1 for r in refs if isinstance(r, str) and r == analysis_id)
+        if project_missing:
+            build_ids.append(build_id)
+            missing_refs += project_missing
+    return {"build_ids": build_ids, "missing_refs": missing_refs}
+
+
 def _delete_entity(root: Path, kind: str, entity_id: str) -> dict[str, object]:
     if not entity_id or any(c in entity_id for c in ("/", "\\", "\0")) or entity_id in (".", ".."):
         return {"error": "invalid id"}
@@ -824,6 +912,7 @@ def _delete_entity(root: Path, kind: str, entity_id: str) -> dict[str, object]:
         "exp": root / "exp" / entity_id,
         "data": root / "data" / entity_id,
         "analysis": root / "analysis" / entity_id,
+        "build": root / "build" / entity_id,
         "calc": root / "calculators" / entity_id,
     }
 
@@ -835,9 +924,13 @@ def _delete_entity(root: Path, kind: str, entity_id: str) -> dict[str, object]:
     if not target_dir.is_dir():
         return {"error": "not found"}
 
-    stale_info = {"analysis_ids": [], "missing_refs": 0}
+    stale_info: dict[str, object] = {"analysis_ids": [], "missing_refs": 0}
     if kind == "data":
         stale_info = _analysis_stale_refs_for_data(root, entity_id)
+
+    build_stale_info: dict[str, object] = {"build_ids": [], "missing_refs": 0}
+    if kind == "analysis":
+        build_stale_info = _build_stale_refs_for_analysis(root, entity_id)
 
     shutil.rmtree(target_dir)
     return {
@@ -846,6 +939,8 @@ def _delete_entity(root: Path, kind: str, entity_id: str) -> dict[str, object]:
         "id": entity_id,
         "stale_analyses": stale_info["analysis_ids"],
         "stale_analysis_count": len(stale_info["analysis_ids"]),
+        "stale_builds": build_stale_info["build_ids"],
+        "stale_build_count": len(build_stale_info["build_ids"]),
         "missing_reference_count": stale_info["missing_refs"],
     }
 

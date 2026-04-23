@@ -62,10 +62,10 @@ memoSaveBtn.addEventListener("click", async () => {
   updateMemoButtons();
   memoStatusEl.textContent = "Saving…";
   try {
-    const payload = await apiJson("/api/analysis-memo", {
+    const payload = await apiJson("/api/memo", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({id: currentId, memo: memoInput.value}),
+      body: JSON.stringify({kind: "analysis", id: currentId, memo: memoInput.value}),
     });
     memoOriginal = memoInput.value;
     memoStatusEl.textContent = payload.updated_at ? `Saved ${payload.updated_at}` : "Saved";
