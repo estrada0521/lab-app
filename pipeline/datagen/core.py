@@ -3,9 +3,12 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+_log = logging.getLogger(__name__)
 
 FLAT_RAWDATA_DIR = "rawdata"
 FLAT_DATA_DIR = "data"
@@ -393,7 +396,8 @@ def discover_data_files(root: Path) -> list[Path]:
             continue
         try:
             build_source_context(root, path, source_name=source_record_name(root, path))
-        except Exception:
+        except Exception as exc:
+            _log.debug("Skipping %s during discovery: %s", path, exc)
             continue
         discovered.add(path.resolve())
     return sorted(discovered)

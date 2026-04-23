@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
+import logging
 import shutil
 import subprocess
 import sys
@@ -12,6 +13,8 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+
+_log = logging.getLogger(__name__)
 
 from . import core
 
@@ -306,7 +309,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                             summary["suggested_x"] = meta["default_x"]
                         if meta.get("default_y"):
                             summary["suggested_y"] = meta["default_y"]
-                    except Exception:
+                    except (OSError, json.JSONDecodeError):
                         pass
                 self.send_json(summary)
             elif parsed.path == "/api/data-summary":
@@ -592,7 +595,8 @@ def _update_json_file(path: Path, updater) -> bool:
                 json.dump(data, f, indent=2, ensure_ascii=False)
                 f.write("\n")
         return bool(changed)
-    except Exception:
+    except (OSError, json.JSONDecodeError) as exc:
+        _log.warning("Failed to patch metadata at %s: %s", path, exc)
         return False
 
 
@@ -795,9 +799,9 @@ def _analysis_stale_refs_for_data(root: Path, data_id: str) -> dict[str, object]
         try:
             with open(meta_path, encoding="utf-8") as f:
                 meta = json.load(f)
-        except Exception:
+        except (OSError, json.JSONDecodeError) as exc:
+            _log.warning("Skipping unreadable analysis metadata %s: %s", meta_path, exc)
             continue
-        refs = meta.get("source_data")
         if not isinstance(refs, list):
             continue
         project_id = meta_path.parent.name
@@ -864,6 +868,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     global DB_ROOT
     args = build_parser().parse_args()
+    logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
     DB_ROOT = Path(args.db_root).resolve()
     core.REPO_ROOT = DB_ROOT
     server = DatParserHTTPServer((args.host, args.port), DatParserHandler)

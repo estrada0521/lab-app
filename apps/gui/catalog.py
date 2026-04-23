@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import datetime
+import json
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -8,6 +10,8 @@ from typing import Any
 from pipeline.datagen import core as datagen_core
 
 from . import core as datparser_core
+
+_log = logging.getLogger(__name__)
 
 
 TIME_KEYS = (
@@ -100,7 +104,7 @@ def _data_created(root: Path, path: Path) -> str:
             raw_meta = datparser_core.read_raw_meta(raw)
             session_id = _text(raw_meta.get("session_id"))
             return _rawdata_created(raw, raw_meta, session_id)
-    except Exception:
+    except (OSError, json.JSONDecodeError, ValueError):
         pass
     return ""
 
@@ -117,11 +121,11 @@ def raw_entry(root: Path, path: Path) -> dict[str, object]:
             "measurement": context.measurement_type,
             "session": context.session_id,
         }
-    except Exception:
-        pass
+    except Exception as exc:
+        _log.debug("build_source_context failed for %s: %s", path, exc)
     try:
         metadata = datparser_core.read_raw_meta(path)
-    except Exception:
+    except (OSError, json.JSONDecodeError):
         metadata = {}
     display_name = _first_text(metadata.get("display_name"), path.parent.name)
     return {
@@ -151,8 +155,8 @@ def data_entry(root: Path, path: Path) -> dict[str, object]:
             "measurement": context.measurement_type,
             "session": context.session_id,
         }
-    except Exception:
-        pass
+    except Exception as exc:
+        _log.debug("build_source_context failed for %s: %s", path, exc)
     try:
         meta_path = path.parent / datagen_core.FLAT_METADATA_NAME
         meta = datagen_core.load_optional_json(meta_path)
@@ -172,8 +176,8 @@ def data_entry(root: Path, path: Path) -> dict[str, object]:
             raw_csv = src.get("rawdata_csv", "") if isinstance(src, dict) else ""
             if raw_csv:
                 raw_source = str(raw_csv)
-    except Exception:
-        pass
+    except (OSError, json.JSONDecodeError, ValueError, KeyError) as exc:
+        _log.debug("data_entry metadata failed for %s: %s", path, exc)
     return {
         "id": path.parent.name,
         "path": rel,

@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import csv
 import importlib.util
 import json
+import logging
 import sys
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from types import ModuleType
 from typing import Any
+
+_log = logging.getLogger(__name__)
 
 from .core import FilterContext, build_source_context, data_output_paths, next_data_id, read_metadata, relative_text, resolve_path, write_metadata
 
@@ -110,7 +114,7 @@ def _format_template(value: str, analysis: dict[str, Any]) -> str:
         return value.format(
             element=analysis.get("parameters", {}).get("normalization_element", ""),
         )
-    except Exception:
+    except (KeyError, ValueError, IndexError):
         return value
 
 
@@ -255,7 +259,8 @@ def available_calculators(context: FilterContext, *, calculator_options: dict[st
         from .core import read_csv_rows
 
         header, rows = read_csv_rows(context.source_path)
-    except Exception:
+    except (OSError, UnicodeDecodeError, csv.Error) as exc:
+        _log.debug("Cannot read CSV for %s: %s", context.source_path, exc)
         return []
     matches: list[CalculatorEntry] = []
     for entry, assessment in assess_calculators(
