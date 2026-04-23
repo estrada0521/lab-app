@@ -36,17 +36,16 @@ lab-app/
 ```text
 <db_root>/
 ├── analysis/000001/metadata.json
-│     └─ source_data ──→ data/
-│                          └─ rawdata_id ──→ rawdata/
-│                                              ├─ sample_id  ──→ samples/
-│                                              │                   └─ material_id ──→ DB/
-│                                              └─ session_id ──→ exp/
-│
-├── data/000001/{000001.csv, metadata.json}
-├── rawdata/000001/{<payload_file>, metadata.json}
-├── samples/000001/metadata.json
-├── exp/000001/metadata.json
-├── DB/
+│   └── source_data ──────────────────────────────────────────────────┐
+├── data/000001/{000001.csv, metadata.json} ◄───────────────────────────┘
+│   └── rawdata_id ────────────────────────────────────────────────────┐
+├── rawdata/000001/{<payload>, metadata.json} ◄────────────────────────┘
+│   ├── sample_id  ────────────────────────────────────────────────────┐
+│   └── session_id ────────────────────────────────────────────────────┼──┐
+├── samples/000001/metadata.json ◄────────────────────────────────────┘  │
+│   └── material_id ───────────────────────────────────────────────────┐  │
+├── exp/000001/metadata.json ◄─────────────────────────────────────────│──┘
+├── DB/ ◄──────────────────────────────────────────────────────────────┘
 └── calculators/magnetization_v1/{calculator.py, calculator.json, README.md}
 ```
 
