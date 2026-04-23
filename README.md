@@ -36,67 +36,37 @@ lab-app/
 ```text
 <db_root>/
 │
-├── DB/                                        # material DB (material_id の参照先)
+├── DB/                            # material DB (material_id の参照先)
 │
 ├── samples/
 │   └── 000001/
-│       └── metadata.json                      # display_name
-│                                              # material_id ─→ DB/
-│                                              # form, mass_mg, orientation
-│                                              # owner, polish_date, synthesizer, notes
+│       └── metadata.json          # material_id ─→ DB/
 │
 ├── exp/
 │   └── 000001/
-│       └── metadata.json                      # display_name
-│                                              # start_date, end_date
+│       └── metadata.json
 │
 ├── rawdata/
 │   └── 000001/
-│       ├── <payload_file>                     # 装置出力ファイル (名前そのまま)
-│       └── metadata.json                      # display_name
-│                                              # kind, payload_file
-│                                              # sample_id ─→ samples/
-│                                              # session_id ─→ exp/
-│                                              # conditions: {sweep, fixed}
-│                                              # default_x, default_y
-│                                              # uploaded_at
-│                                              # (strain のみ) strain_calculation:
-│                                              #   calculator, gauge_factor, amplifier_gain
-│                                              #   input_voltage_v, bridge_correction_factor
-│                                              #   lockin_sign, axis_family
-│                                              #   copper_thermal_expansion
+│       ├── <payload_file>
+│       └── metadata.json          # sample_id  ─→ samples/
+│                                  # session_id ─→ exp/
 │
 ├── data/
 │   └── 000001/
 │       ├── 000001.csv
-│       └── metadata.json                      # display_name
-│                                              # calculator, kind
-│                                              # rawdata_id ─→ rawdata/
-│                                              # conditions: {sweep, fixed}
-│                                              # default_x, default_y
-│                                              # created_at
+│       └── metadata.json          # rawdata_id ─→ rawdata/
 │
 ├── analysis/
 │   └── 000001/
 │       ├── plot.py
-│       ├── plotted_data.csv
-│       ├── summary.png / .pdf
-│       └── metadata.json                      # display_name
-│                                              # source_data ─→ data/ (複数パス)
-│                                              # created_at
+│       └── metadata.json          # source_data ─→ data/ (複数パス)
 │
-└── calculators/                               # フォルダ名 = calculator_id (semantic 名)
+└── calculators/                   # フォルダ名 = calculator_id (semantic 名)
     └── magnetization_v1/
         ├── calculator.py
-        ├── calculator.json                    # display_name, description
-        │                                      # transform_type, ui_options
-        │                                      # output_columns
-        │                                      # required_columns_detail
-        │                                      # required_parameters_detail
-        │                                      #   fallback: rawdata / sample / material
-        │                                      # data_metadata_policy
-        ├── README.md
-        └── assets/                            # (任意) lookup table 等
+        ├── calculator.json
+        └── README.md
 ```
 
 ---
