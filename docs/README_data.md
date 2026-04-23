@@ -18,9 +18,6 @@
 
 実務上は次も残してください。
 
-- `bindings`
-- `measurement_kind`
-- `outputs`
 - `created_at`
 
 正確な仕様が必要な場合は次を読むこと。

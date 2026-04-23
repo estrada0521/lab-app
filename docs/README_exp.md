@@ -6,15 +6,13 @@
 - session の metadata は `metadata.json` に保存します
 - `session_id` は folder 名を SoT とし、`metadata.json` に重複保存しません
 - human readable な表示名は `display_name` に持たせます
-- 共通 parameter が複数 rawdata に共有される場合は、`exp` metadata を fallback として使います
 
 ## GUI / pipeline 互換メモ
 
-`exp/` metadata は Experiments ページの表示元であると同時に、calculator の session parameter source です。
+`exp/` metadata は主に Experiments ページの表示元です。
 
 典型例:
 
-- `strain_calculation`
 - `start_date`
 - `end_date`
 - `display_name`

@@ -19,6 +19,9 @@ GUI と pipeline が metadata 解決を始める起点は `rawdata/<rawdata_id>/
 - `measurement_type`
 - `display_name`
 
+calculator が必要とする測定固有 parameter は、必要なら rawdata metadata に直接持たせます。
+parameter 解決は rawdata / sample / material を前提とし、exp metadata を calculator parameter source にはしません。
+
 `material_id` は任意項目です（`sample.metadata.json` から辿れる場合は省略可）。
 
 GUI 上の既定軸を与えたい場合は次も使えます。
