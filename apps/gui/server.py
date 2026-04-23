@@ -95,13 +95,12 @@ def _table_rows(table: core.TableData) -> list[dict[str, str]]:
 
 def _data_result_payload(root: Path, result: object) -> dict[str, object]:
     output_paths = getattr(result, "output_paths", {}) or {}
+    metadata_path = output_paths.get("json") if isinstance(output_paths, dict) else None
+    metadata = data_core.read_metadata(metadata_path) if isinstance(metadata_path, Path) else {}
+    csv_output = output_paths.get("csv") if isinstance(output_paths, dict) else None
+    csv_rel = core.relative_text(csv_output, root) if isinstance(csv_output, Path) else ""
     payload: dict[str, object] = {
-        "outputs": {
-            key: core.relative_text(path, root) if isinstance(path, Path) else str(path)
-            for key, path in output_paths.items()
-        },
         "rows": getattr(result, "rows", 0),
-        "measurement_kind": getattr(result, "measurement_kind", ""),
         "x_column": getattr(result, "x_column", ""),
         "y_column": getattr(result, "y_column", ""),
         "x_label": getattr(result, "x_label", ""),
@@ -112,9 +111,12 @@ def _data_result_payload(root: Path, result: object) -> dict[str, object]:
         value = getattr(result, name, None)
         if value is not None:
             payload[name] = value
-    csv_output = payload["outputs"].get("csv") if isinstance(payload["outputs"], dict) else None
-    if isinstance(csv_output, str) and csv_output:
-        payload["name"] = Path(csv_output).stem
+    if csv_rel:
+        payload["csv_path"] = csv_rel
+        payload["name"] = Path(csv_rel).stem
+        payload["data_id"] = Path(csv_rel).stem
+    if isinstance(metadata, dict):
+        payload["display_name"] = str(metadata.get("display_name") or "").strip()
     return payload
 
 
@@ -310,7 +312,11 @@ class DatParserHandler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/data-summary":
                 query = parse_qs(parsed.query)
                 calculator = query.get("calculator", [""])[0] or None
-                name = query.get("name", [""])[0] or None
+                display_name = query.get("display_name", [""])[0] or None
+                calculator_options_raw = query.get("calculator_options", ["{}"])[0] or "{}"
+                calculator_options = json.loads(calculator_options_raw) if calculator_options_raw else {}
+                if not isinstance(calculator_options, dict):
+                    calculator_options = {}
                 path = core.path_from_client(self.server.db_root, query.get("path", [""])[0])
                 if not _is_raw_source_path(self.server.db_root, path):
                     raise ValueError("data summary expects a rawdata source")
@@ -321,8 +327,9 @@ class DatParserHandler(BaseHTTPRequestHandler):
                         path,
                         table.header,
                         _table_rows(table),
-                        output_name=name,
+                        display_name=display_name,
                         calculator_id=calculator,
+                        calculator_options=calculator_options,
                     )
                 )
             elif parsed.path == "/api/plot":
@@ -421,12 +428,14 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 table = core.parse_table(source_path)
                 conditions = [c for c in payload.get("conditions", []) if isinstance(c, dict)]
                 rows = _apply_conditions(table.header, _table_rows(table), conditions)
+                calculator_options = payload.get("calculator_options") if isinstance(payload.get("calculator_options"), dict) else {}
                 result = data_gui.create_data(
                     self.server.db_root,
                     source_path,
-                    output_name=str(payload.get("name") or "").strip() or None,
+                    display_name=str(payload.get("display_name") or payload.get("name") or "").strip() or None,
                     overwrite=bool(payload.get("overwrite")),
                     calculator_id=str(payload.get("calculator") or "").strip() or None,
+                    calculator_options=calculator_options,
                     retained_source_columns=[str(name) for name in payload.get("retained_source_columns", []) if str(name).strip()],
                     source_header=table.header,
                     source_rows=rows,
@@ -520,7 +529,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 old_id = str(payload.get("old_id", ""))
                 new_id = str(payload.get("new_id", "")).strip()
                 new_name = str(payload.get("new_name", "")).strip()
-                if kind in {"rawdata", "data", "sample", "exp"} and old_id and new_name:
+                if kind in {"rawdata", "data", "sample", "exp", "analysis", "calc"} and old_id and new_name:
                     result = _update_record_display_name(self.server.db_root, kind, old_id, new_name)
                     status = HTTPStatus.OK if not result.get("error") else HTTPStatus.BAD_REQUEST
                     self.send_json(result, status)
@@ -605,12 +614,28 @@ def _update_record_display_name(root: Path, kind: str, record_id: str, display_n
         else "data" if kind == "data"
         else "samples" if kind == "sample"
         else "exp" if kind == "exp"
+        else "analysis" if kind == "analysis"
         else ""
     )
-    if not subdir:
-        return {"error": f"unsupported kind: {kind}"}
     if any(c in display_name for c in ("/", "\\", "\0")):
         return {"error": "invalid display_name"}
+    if kind == "calc":
+        manifest_path = root / "calculators" / record_id / "calculator.json"
+        if not manifest_path.exists():
+            return {"error": f"calculators/{record_id} not found"}
+
+        def _apply_calc(data):
+            current = str(data.get("display_name") or data.get("title") or "").strip()
+            if current == display_name:
+                return False
+            data["display_name"] = display_name
+            data.pop("title", None)
+            return True
+
+        changed = _update_json_file(manifest_path, _apply_calc)
+        return {"ok": True, "id": record_id, "display_name": display_name, "updated_refs": 0, "changed": changed}
+    if not subdir:
+        return {"error": f"unsupported kind: {kind}"}
     meta_path = root / subdir / record_id / "metadata.json"
     if not meta_path.exists():
         return {"error": f"{subdir}/{record_id} not found"}
@@ -721,25 +746,7 @@ def _cascade_rename(root: Path, kind: str, old_id: str, new_id: str) -> dict:
             old_csv.rename(old_dir / f"{new_id}.csv")
         old_dir.rename(new_dir)
 
-        def _fix_data_outputs(data, oid=old_id, nid=new_id):
-            changed = False
-            outputs = data.get("outputs")
-            if isinstance(outputs, dict):
-                for key, val in list(outputs.items()):
-                    if isinstance(val, str):
-                        new_val = val.replace(f"data/{oid}/", f"data/{nid}/")
-                        if oid in new_val:
-                            # also rename the file stem inside the path
-                            new_val = new_val.replace(f"/{oid}.", f"/{nid}.")
-                        if new_val != val:
-                            outputs[key] = new_val
-                            changed = True
-            return changed
-
         meta_path = new_dir / "metadata.json"
-        if meta_path.exists():
-            _update_json_file(meta_path, _fix_data_outputs)
-
     elif kind == "analysis":
         old_dir = root / "analysis" / old_id
         new_dir = root / "analysis" / new_id
@@ -757,7 +764,7 @@ def _cascade_rename(root: Path, kind: str, old_id: str, new_id: str) -> dict:
         if new_dir.exists():
             return {"error": f"calculators/{new_id} already exists"}
         old_dir.rename(new_dir)
-        manifest = new_dir / "manifest.json"
+        manifest = new_dir / "calculator.json"
         if manifest.exists():
             def _fix_manifest(data, oid=old_id, nid=new_id):
                 if data.get("id") == oid:

@@ -9,24 +9,22 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-from .core import FilterContext, build_source_context, data_output_paths, read_metadata, relative_text, resolve_path
+from .core import FilterContext, build_source_context, data_output_paths, next_data_id, read_metadata, relative_text, resolve_path, write_metadata
 
 
 @dataclass(frozen=True)
 class CalculatorEntry:
     id: str
-    title: str
-    measurement_type: str
+    display_name: str
     description: str
-    required_columns: list[str]
-    required_metadata: list[str]
-    required_parameters: list[str]
-    dependencies: dict[str, Any]
+    ui_options: list[dict[str, Any]]
+    required_columns_detail: list[dict[str, Any]]
+    required_parameters_detail: list[dict[str, Any]]
+    data_metadata_policy: dict[str, Any]
     manifest_path: Path
     package_dir: Path
     handler_path: Path
     readme_path: Path
-    ui_options: list[dict[str, Any]]
     transform_type: str
     output_columns: list[str]
 
@@ -42,31 +40,27 @@ def _calculator_entry(root: Path, manifest_path: Path) -> CalculatorEntry:
     payload = _load_manifest(manifest_path)
     package_dir = manifest_path.parent.resolve()
     calculator_id = str(payload.get("id") or package_dir.name).strip()
-    measurement_type = str(payload.get("measurement_type") or "").strip()
-    title = str(payload.get("title") or calculator_id).strip()
+    display_name = str(payload.get("display_name") or payload.get("title") or calculator_id).strip()
     description = str(payload.get("description") or "").strip()
     if not calculator_id:
         raise ValueError(f"calculator manifest must define id: {manifest_path}")
-    handler_rel = str(payload.get("handler") or "calculator.py").strip()
-    readme_rel = str(payload.get("readme") or "README.md").strip()
-    dependencies = payload.get("dependencies") if isinstance(payload.get("dependencies"), dict) else {}
+    handler_rel = "calculator.py"
+    readme_rel = "README.md"
     ui_options = payload.get("ui_options") if isinstance(payload.get("ui_options"), list) else []
     transform_type = str(payload.get("transform_type") or "column").strip()
     output_columns = [str(c) for c in payload.get("output_columns", []) if str(c).strip()]
     return CalculatorEntry(
         id=calculator_id,
-        title=title,
-        measurement_type=measurement_type,
+        display_name=display_name,
         description=description,
-        required_columns=[str(item) for item in payload.get("required_columns", [])],
-        required_metadata=[str(item) for item in payload.get("required_metadata", [])],
-        required_parameters=[str(item) for item in payload.get("required_parameters", [])],
-        dependencies=dependencies,
+        ui_options=[dict(item) for item in ui_options if isinstance(item, dict)],
+        required_columns_detail=[dict(item) for item in payload.get("required_columns_detail", []) if isinstance(item, dict)],
+        required_parameters_detail=[dict(item) for item in payload.get("required_parameters_detail", []) if isinstance(item, dict)],
+        data_metadata_policy=payload.get("data_metadata_policy") if isinstance(payload.get("data_metadata_policy"), dict) else {},
         manifest_path=manifest_path.resolve(),
         package_dir=package_dir,
         handler_path=(package_dir / handler_rel).resolve(),
         readme_path=(package_dir / readme_rel).resolve(),
-        ui_options=[dict(item) for item in ui_options if isinstance(item, dict)],
         transform_type=transform_type,
         output_columns=output_columns,
     )
@@ -106,21 +100,76 @@ def _readme_text(entry: CalculatorEntry) -> str:
     return entry.readme_path.read_text(encoding="utf-8")
 
 
+def _raw_default_x(context: FilterContext) -> str:
+    source_meta = read_metadata(context.source_path.parent / "metadata.json")
+    return str(source_meta.get("default_x") or "").strip()
+
+
+def _format_template(value: str, analysis: dict[str, Any]) -> str:
+    try:
+        return value.format(
+            element=analysis.get("parameters", {}).get("normalization_element", ""),
+        )
+    except Exception:
+        return value
+
+
+def _apply_data_metadata_policy(
+    entry: CalculatorEntry,
+    context: FilterContext,
+    metadata: dict[str, Any],
+    analysis: dict[str, Any],
+    calculator_options: dict[str, Any],
+) -> dict[str, Any]:
+    payload = dict(metadata)
+    payload.pop("measurement_kind", None)
+    policy = entry.data_metadata_policy if isinstance(entry.data_metadata_policy, dict) else {}
+    defaults = policy.get("defaults") if isinstance(policy.get("defaults"), dict) else {}
+    if isinstance(defaults.get("default_y"), str) and defaults.get("default_y"):
+        payload["default_y"] = _format_template(str(defaults["default_y"]), analysis)
+    default_x_map = defaults.get("default_x_map")
+    raw_default_x = _raw_default_x(context)
+    if isinstance(default_x_map, list) and raw_default_x:
+        for item in default_x_map:
+            if not isinstance(item, dict):
+                continue
+            source_any = item.get("source_any_of")
+            if isinstance(source_any, list) and raw_default_x in [str(v) for v in source_any]:
+                output = str(item.get("output") or "").strip()
+                if output:
+                    payload["default_x"] = output
+                    break
+    by_option = policy.get("by_option") if isinstance(policy.get("by_option"), dict) else {}
+    selected_mode = str((calculator_options or {}).get("mode") or "").strip()
+    mode_policy = by_option.get(selected_mode) if selected_mode else None
+    if isinstance(mode_policy, dict):
+        default_x = str(mode_policy.get("default_x") or "").strip()
+        default_y = str(mode_policy.get("default_y") or "").strip()
+        if default_x:
+            payload["default_x"] = default_x
+        if default_y:
+            payload["default_y"] = default_y
+        append_conditions = mode_policy.get("conditions_append")
+        if isinstance(append_conditions, dict):
+            from .core import merge_conditions
+            current_conditions = payload.get("conditions") if isinstance(payload.get("conditions"), dict) else {}
+            payload["conditions"] = merge_conditions(current_conditions, append_conditions)
+    return payload
+
+
 def _entry_payload(root: Path, entry: CalculatorEntry, *, include_readme: bool = False) -> dict[str, Any]:
     payload = {
         "id": entry.id,
-        "title": entry.title,
-        "measurement_type": entry.measurement_type,
+        "display_name": entry.display_name,
         "description": entry.description,
-        "required_columns": entry.required_columns,
-        "required_metadata": entry.required_metadata,
-        "required_parameters": entry.required_parameters,
-        "dependencies": entry.dependencies,
+        "ui_options": entry.ui_options,
+        "required_columns_detail": entry.required_columns_detail,
+        "required_parameters_detail": entry.required_parameters_detail,
+        "data_metadata_policy": entry.data_metadata_policy,
         "package_path": relative_text(entry.package_dir, root),
         "manifest_path": relative_text(entry.manifest_path, root),
         "handler_path": relative_text(entry.handler_path, root),
         "readme_path": relative_text(entry.readme_path, root),
-        "ui_options": entry.ui_options,
         "transform_type": entry.transform_type,
         "output_columns": entry.output_columns,
     }
@@ -140,15 +189,16 @@ def _inspect_calculator(
     rows: list[dict[str, str]],
     *,
     source_name: str,
+    calculator_options: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     module = _handler(entry)
     inspect_fn = getattr(module, "inspect_source", None)
     if callable(inspect_fn):
-        payload = inspect_fn(context, header, rows, source_name=source_name)
+        payload = inspect_fn(context, header, rows, source_name=source_name, calculator_options=calculator_options or {})
         if not isinstance(payload, dict):
             raise ValueError(f"inspect_source must return a dict: {entry.id}")
     else:
-        analysis = module.analyze_source(context, header, rows, source_name=source_name)
+        analysis = module.analyze_source(context, header, rows, source_name=source_name, calculator_options=calculator_options or {})
         payload = {
             "ready": True,
             "analysis": analysis,
@@ -176,11 +226,12 @@ def assess_calculators(
     rows: list[dict[str, str]],
     *,
     source_name: str,
+    calculator_options: dict[str, Any] | None = None,
 ) -> list[tuple[CalculatorEntry, dict[str, Any]]]:
     assessments: list[tuple[CalculatorEntry, dict[str, Any]]] = []
     for entry in _calculator_entries(context.repo_root):
         try:
-            assessments.append((entry, _inspect_calculator(entry, context, header, rows, source_name=source_name)))
+            assessments.append((entry, _inspect_calculator(entry, context, header, rows, source_name=source_name, calculator_options=calculator_options)))
         except Exception as exc:
             assessments.append(
                 (
@@ -199,7 +250,7 @@ def assess_calculators(
     return assessments
 
 
-def available_calculators(context: FilterContext) -> list[CalculatorEntry]:
+def available_calculators(context: FilterContext, *, calculator_options: dict[str, Any] | None = None) -> list[CalculatorEntry]:
     try:
         from .core import read_csv_rows
 
@@ -207,14 +258,25 @@ def available_calculators(context: FilterContext) -> list[CalculatorEntry]:
     except Exception:
         return []
     matches: list[CalculatorEntry] = []
-    for entry, assessment in assess_calculators(context, header, rows, source_name=context.filter_id):
+    for entry, assessment in assess_calculators(
+        context,
+        header,
+        rows,
+        source_name=context.filter_id,
+        calculator_options=calculator_options,
+    ):
         if assessment.get("ready"):
             matches.append(entry)
     return matches
 
 
-def get_calculator(context: FilterContext, calculator_id: str | None = None) -> CalculatorEntry:
-    matches = available_calculators(context)
+def get_calculator(
+    context: FilterContext,
+    calculator_id: str | None = None,
+    *,
+    calculator_options: dict[str, Any] | None = None,
+) -> CalculatorEntry:
+    matches = available_calculators(context, calculator_options=calculator_options)
     if not matches:
         raise ValueError("no calculator is ready for this rawdata")
     if calculator_id is None:
@@ -228,8 +290,10 @@ def get_calculator(context: FilterContext, calculator_id: str | None = None) -> 
 def create_data_for_context(
     context: FilterContext,
     output_name: str | None = None,
+    display_name: str | None = None,
     overwrite: bool = False,
     calculator_id: str | None = None,
+    calculator_options: dict[str, Any] | None = None,
     retained_source_columns: list[str] | None = None,
     source_header: list[str] | None = None,
     source_rows: list[dict[str, str]] | None = None,
@@ -240,7 +304,7 @@ def create_data_for_context(
         header, rows = read_csv_rows(context.source_path)
     else:
         header, rows = source_header, source_rows
-    assessments = assess_calculators(context, header, rows, source_name=context.filter_id)
+    assessments = assess_calculators(context, header, rows, source_name=context.filter_id, calculator_options=calculator_options)
     by_id = {entry.id: (entry, assessment) for entry, assessment in assessments}
     if calculator_id:
         if calculator_id not in by_id:
@@ -258,22 +322,38 @@ def create_data_for_context(
         missing = [*selected_assessment.get("missing_columns", []), *selected_assessment.get("missing_metadata", []), *selected_assessment.get("errors", [])]
         details = "; ".join(missing) if missing else "dependencies are missing"
         raise ValueError(f"calculator is not ready: {calculator.id} ({details})")
-    return _handler(calculator).create_data(
+    data_id = output_name or next_data_id(context.repo_root)
+    result = _handler(calculator).create_data(
         context,
-        output_name=output_name,
+        output_name=data_id,
         overwrite=overwrite,
+        calculator_options=calculator_options or {},
         retained_source_columns=retained_source_columns,
         source_header=header,
         source_rows=rows,
     )
+    output_paths = getattr(result, "output_paths", {}) or {}
+    meta_path = output_paths.get("json")
+    if isinstance(meta_path, Path) and meta_path.exists():
+        metadata = read_metadata(meta_path)
+        metadata = _apply_data_metadata_policy(calculator, context, metadata, selected_assessment.get("analysis") if isinstance(selected_assessment.get("analysis"), dict) else {}, calculator_options or {})
+        normalized_display_name = str(display_name or "").strip()
+        if normalized_display_name:
+            metadata["display_name"] = normalized_display_name
+        else:
+            metadata.setdefault("display_name", data_id)
+        write_metadata(meta_path, metadata)
+    return result
 
 
 def create_data(
     root: Path,
     source: str | Path,
     output_name: str | None = None,
+    display_name: str | None = None,
     overwrite: bool = False,
     calculator_id: str | None = None,
+    calculator_options: dict[str, Any] | None = None,
     retained_source_columns: list[str] | None = None,
     source_header: list[str] | None = None,
     source_rows: list[dict[str, str]] | None = None,
@@ -283,8 +363,10 @@ def create_data(
     return create_data_for_context(
         context,
         output_name=output_name,
+        display_name=display_name,
         overwrite=overwrite,
         calculator_id=calculator_id,
+        calculator_options=calculator_options,
         retained_source_columns=retained_source_columns,
         source_header=source_header,
         source_rows=source_rows,
@@ -296,11 +378,12 @@ def summarize_raw_source(
     source_path: Path,
     header: list[str],
     rows: list[dict[str, str]],
-    output_name: str | None = None,
+    display_name: str | None = None,
     calculator_id: str | None = None,
+    calculator_options: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     context = build_source_context(root, source_path, source_name=source_path.stem)
-    assessments = assess_calculators(context, header, rows, source_name=source_path.stem)
+    assessments = assess_calculators(context, header, rows, source_name=source_path.stem, calculator_options=calculator_options)
     if not assessments:
         raise ValueError("no calculators are installed")
 
@@ -313,18 +396,11 @@ def summarize_raw_source(
     )
     selected_analysis = selected_assessment.get("analysis") if isinstance(selected_assessment.get("analysis"), dict) else {}
 
-    current_name = output_name or context.filter_id
-    outputs = data_output_paths(context, current_name)
-    existing_outputs = {
-        key: (relative_text(path, root) if path.exists() else None)
-        for key, path in outputs.items()
-        if key != "dir"
-    }
-    existing_data_meta = read_metadata(outputs["json"])
-    bindings = existing_data_meta.get("bindings", {}) if isinstance(existing_data_meta, dict) else {}
-    selected_passthrough = []
-    if isinstance(bindings, dict) and isinstance(bindings.get("selected_passthrough_columns"), list):
-        selected_passthrough = [str(name) for name in bindings["selected_passthrough_columns"] if str(name) in header]
+    current_data_id = next_data_id(root)
+    default_display_name = str(read_metadata(source_path.parent / "metadata.json").get("display_name") or context.filter_id).strip() or context.filter_id
+    current_display_name = str(display_name or "").strip() or default_display_name
+    outputs = data_output_paths(context, current_data_id)
+    selected_passthrough: list[str] = []
     required_source_columns = [str(name) for name in selected_assessment.get("required_source_columns", selected_analysis.get("required_source_columns", []))]
     optional_source_columns = [name for name in header if name not in required_source_columns]
 
@@ -336,8 +412,13 @@ def summarize_raw_source(
         "measurement_type": context.measurement_type,
         "session_id": context.session_id,
         "filter_id": context.filter_id,
-        "default_name": context.filter_id,
-        "selected_name": current_name,
+        "default_data_id": current_data_id,
+        "data_id": current_data_id,
+        "default_display_name": default_display_name,
+        "selected_display_name": current_display_name,
+        "selected_calculator_options": calculator_options or {},
+        "default_name": default_display_name,
+        "selected_name": current_display_name,
         "kind": selected_analysis.get("kind", ""),
         "calculator": selected_entry.id,
         "calculator_ready": bool(selected_assessment.get("ready")),
@@ -346,7 +427,6 @@ def summarize_raw_source(
         "source_x_column": selected_analysis.get("x_column", ""),
         "source_y_column": selected_analysis.get("moment_column") or selected_analysis.get("y_column") or "",
         "output_dir": relative_text(outputs["dir"], root),
-        "outputs": existing_outputs,
         "material": {
             "formula": context.material_meta.get("formula"),
             "molar_mass_g_per_mol": context.material_meta.get("molar_mass_g_per_mol"),

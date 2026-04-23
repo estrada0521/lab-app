@@ -462,9 +462,7 @@ def write_raw_meta(raw_path: Path, memo: str) -> dict[str, Any]:
             payload = {}
     payload.update(
         {
-            "version": 1,
-            "kind": payload.get("kind") or "rawdata-meta",
-            "display_name": str(payload.get("display_name") or payload.get("rawdata_name") or _rawdata_record_id(raw_path)),
+            "display_name": str(payload.get("display_name") or payload.get("rawdata_name") or _rawdata_payload_stem(raw_path)),
             "payload_file": _rawdata_payload_file(raw_path),
         }
     )

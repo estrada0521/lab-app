@@ -4,7 +4,6 @@
     const browserSearch = document.getElementById("browserSearch");
     const browserTargetRawBtn = document.getElementById("browserTargetRawBtn");
     const browserTargetDataBtn = document.getElementById("browserTargetDataBtn");
-    const materialFilterSelect = document.getElementById("materialFilterSelect");
     const measurementFilterSelect = document.getElementById("measurementFilterSelect");
     const timeFilterSelect = document.getElementById("timeFilterSelect");
     const browserAdvancedBtn = document.getElementById("browserAdvancedBtn");
@@ -33,6 +32,8 @@
     const dataOutputName = document.getElementById("dataOutputName");
     const calculatorSelect = document.getElementById("calculatorSelect");
     const calculatorStatus = document.getElementById("calculatorStatus");
+    const calculatorOptionBlock = document.getElementById("calculatorOptionBlock");
+    const calculatorOptions = document.getElementById("calculatorOptions");
     const parameterBlock = document.getElementById("parameterBlock");
     const parameterToggle = document.getElementById("parameterToggle");
     const boundParameters = document.getElementById("boundParameters");
@@ -75,6 +76,7 @@
     let generatedDataFiles = [];
     let currentDataSummary = null;
     let allCalculators = [];
+    let currentCalculatorOptions = {};
     let selectedRetainedDataColumns = new Set();
     let sidePanelTab = "info";
     let _loadSeq = 0; // monotonic counter to detect stale async loads
@@ -244,6 +246,10 @@
       return "rawdata";
     }
 
+    function conditionToken(parts) {
+      return String(parts.dependance || "").trim();
+    }
+
     const rawMemoPanel = createRawMemoPanel({
       input: rawMemoInput,
       saveBtn: rawMemoSaveBtn,
@@ -258,11 +264,9 @@
         item.display_name || "",
         item.path,
         parts.file,
-        parts.material,
         parts.sample,
         parts.measurement,
         parts.dependance,
-        parts.fixed,
         parts.session,
         parts.time,
         kindLabel(item.kind),
@@ -278,8 +282,8 @@
     function browserSort(a, b) {
       const aParts = pathParts(a.path, a.kind, a);
       const bParts = pathParts(b.path, b.kind, b);
-      const aKey = [aParts.material, aParts.measurement, aParts.time, aParts.sample, aParts.session, a.kind, aParts.file].join("\u0000");
-      const bKey = [bParts.material, bParts.measurement, bParts.time, bParts.sample, bParts.session, b.kind, bParts.file].join("\u0000");
+      const aKey = [aParts.measurement, aParts.time, aParts.sample, aParts.session, a.kind, aParts.file].join("\u0000");
+      const bKey = [bParts.measurement, bParts.time, bParts.sample, bParts.session, b.kind, bParts.file].join("\u0000");
       return aKey.localeCompare(bKey, undefined, {numeric: true});
     }
 
@@ -398,7 +402,6 @@
     }
 
     function browserFilteredFiles() {
-      const material = materialFilterSelect.value;
       const measurement = measurementFilterSelect.value;
       const dependance = timeFilterSelect.value;
       const sample = sampleFilterSelect?.value || "";
@@ -407,9 +410,8 @@
       return workspaceFiles.filter(item => {
         const parts = pathParts(item.path, item.kind, item);
         return item.kind === browserTarget
-          && (!material || parts.material === material)
           && (!measurement || parts.measurement === measurement)
-          && (!dependance || parts.dependance === dependance)
+          && (!dependance || conditionToken(parts) === dependance)
           && (!sample || parts.sample === sample)
           && (!session || parts.session === session)
           && (!query || browserSearchText(item).includes(query));
@@ -432,19 +434,16 @@
     }
 
     function refreshBrowserFilters() {
-      const materials = Array.from(new Set(workspaceFiles.map(item => pathParts(item.path, item.kind, item).material).filter(Boolean)))
-        .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
       const measurements = Array.from(new Set(workspaceFiles.map(item => pathParts(item.path, item.kind, item).measurement).filter(Boolean)))
         .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
-      const dependances = Array.from(new Set(workspaceFiles.map(item => pathParts(item.path, item.kind, item).dependance).filter(Boolean)))
+      const dependances = Array.from(new Set(workspaceFiles.map(item => conditionToken(pathParts(item.path, item.kind, item))).filter(Boolean)))
         .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
       const samples = Array.from(new Set(workspaceFiles.map(item => pathParts(item.path, item.kind, item).sample).filter(Boolean)))
         .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
       const sessions = Array.from(new Set(workspaceFiles.map(item => pathParts(item.path, item.kind, item).session).filter(Boolean)))
         .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
-      setSelectOptions(materialFilterSelect, [["", "all materials"], ...materials.map(value => [value, value])]);
-      setSelectOptions(measurementFilterSelect, [["", "all types"], ...measurements.map(value => [value, value])]);
-      setSelectOptions(timeFilterSelect, [["", "all dependances"], ...dependances.map(value => [value, value])]);
+      setSelectOptions(measurementFilterSelect, [["", "all kinds"], ...measurements.map(value => [value, value])]);
+      setSelectOptions(timeFilterSelect, [["", "all conditions"], ...dependances.map(value => [value, value])]);
       if (sampleFilterSelect) setSelectOptions(sampleFilterSelect, [["", "all samples"], ...samples.map(id => [id, samplesIndex[id] ? `${samplesIndex[id]} (${id})` : id])]);
       if (sessionFilterSelect) setSelectOptions(sessionFilterSelect, [["", "all sessions"], ...sessions.map(id => [id, sessionsIndex[id] ? `${sessionsIndex[id]} (${id})` : id])]);
     }
@@ -563,6 +562,50 @@
         : '<div class="param-key">—</div><div class="param-value">—</div>';
     }
 
+    function collectCalculatorOptions() {
+      const values = {};
+      if (!calculatorOptions) return values;
+      for (const el of calculatorOptions.querySelectorAll("[data-option-id]")) {
+        const id = el.dataset.optionId;
+        if (!id) continue;
+        const value = String(el.value || "").trim();
+        if (value) values[id] = value;
+      }
+      return values;
+    }
+
+    function renderCalculatorOptionControls(summary) {
+      if (!calculatorOptions) return;
+      const uiOptions = summary?.selected_calculator?.ui_options || [];
+      currentCalculatorOptions = summary?.selected_calculator_options || currentCalculatorOptions || {};
+      calculatorOptionBlock?.classList.toggle("is-empty", uiOptions.length === 0);
+      if (!uiOptions.length) {
+        calculatorOptions.innerHTML = '<div class="param-key">—</div><div class="param-value">—</div>';
+        return;
+      }
+      calculatorOptions.innerHTML = uiOptions.map(option => {
+        const id = String(option.id || "").trim();
+        const label = String(option.label || id || "option");
+        const choices = Array.isArray(option.choices) ? option.choices : [];
+        const current = String(currentCalculatorOptions[id] || option.default || "").trim();
+        const opts = ['<option value=""></option>', ...choices.map(choice => {
+          const value = String(choice.value || "").trim();
+          const text = String(choice.label || value).trim();
+          const selected = value === current ? ' selected' : '';
+          return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(text)}</option>`;
+        })].join("");
+        return `<div class="param-key">${escapeHtml(label)}</div><div class="param-value"><select data-option-id="${escapeHtml(id)}">${opts}</select></div>`;
+      }).join("");
+      for (const el of calculatorOptions.querySelectorAll("[data-option-id]")) {
+        el.addEventListener("change", () => {
+          currentCalculatorOptions = collectCalculatorOptions();
+          if (currentKind === "rawdata") {
+            renderSourceDataPanel(currentPath, dataOutputName.value.trim()).catch(err => setStatus(err.message, true));
+          }
+        });
+      }
+    }
+
     function calculatorIssues(summary) {
       const selected = summary?.selected_calculator || null;
       if (!selected) return [];
@@ -621,7 +664,7 @@
     function setCalculatorOptions(calculators, selectedId = "") {
       const entries = calculators.map(item => [
         item.id,
-        item.title || item.id,
+        item.display_name || item.id,
       ]);
       setSelectOptions(calculatorSelect, entries.length ? entries : [["", "no calculator available"]], selectedId);
       calculatorSelect.disabled = entries.length === 0;
@@ -649,8 +692,12 @@
 
     async function renderSourceDataPanel(path, requestedName = "") {
       const query = new URLSearchParams({path});
-      const name = requestedName || directDataDefaultName(path);
-      if (name) query.set("name", name);
+      const name = requestedName.trim();
+      if (name) query.set("display_name", name);
+      const calculatorOptionsValue = collectCalculatorOptions();
+      if (Object.keys(calculatorOptionsValue).length) {
+        query.set("calculator_options", JSON.stringify(calculatorOptionsValue));
+      }
       const selectedCalculator = calculatorSelect.value;
       if (selectedCalculator) {
         const selectedEntry = allCalculators.find(item => item.id === selectedCalculator);
@@ -670,8 +717,9 @@
         }
       }
       currentDataSummary = summary;
-      dataOutputName.value = summary.selected_name || summary.default_name || directDataDefaultName(path);
+      dataOutputName.value = summary.selected_display_name || summary.default_display_name || directDataDefaultName(path);
       setCalculatorOptions(summary.available_calculators || [], summary.selected_calculator?.id || summary.calculator || "");
+      renderCalculatorOptionControls(summary);
       renderCalculatorStatus(summary);
       renderOutputColumnsPreview(summary);
       renderParameters(summary.parameters || {});
@@ -1457,7 +1505,8 @@
         `path: ${currentPath}`,
         parts.material ? `material: ${parts.material}` : "",
         parts.sample ? `sample: ${parts.sample}` : "",
-        parts.measurement ? `type: ${parts.measurement}` : "",
+        parts.measurement ? `kind: ${parts.measurement}` : "",
+        parts.dependance ? `condition: ${parts.dependance}` : "",
         parts.session ? `session: ${parts.session}` : "",
         currentPlot?.timeColumn ? `time: ${currentPlot.timeColumn}` : "",
         previewFiltersEnabled ? "filters: preview" : "",
@@ -1740,14 +1789,18 @@
         body: JSON.stringify({
           path: currentPath,
           calculator: calculatorSelect.value,
-          name: dataOutputName.value.trim(),
+          calculator_options: collectCalculatorOptions(),
+          display_name: dataOutputName.value.trim(),
           overwrite: true,
           retained_source_columns: selectedRetainedColumnsList(),
           conditions: collectConditions(),
         })
       });
-      const csv = payload.outputs?.csv || "";
-      setStatus(`Generated ${csv || payload.name}`);
+      const csv = payload.csv_path || (payload.data_id ? `data/${payload.data_id}/${payload.data_id}.csv` : "");
+      const generatedLabel = payload.display_name
+        ? `${payload.display_name}${payload.data_id ? ` (${payload.data_id})` : ""}`
+        : (payload.data_id || csv || payload.name || "");
+      setStatus(`Generated ${generatedLabel}`);
       const continuous = document.getElementById("continuousModeInput")?.checked;
       if (csv && !continuous) await loadWorkspaceFiles(csv);
     }
@@ -1872,8 +1925,8 @@
     if (browserSearch) {
       browserSearch.addEventListener("input", () => updateBrowserFiles({selectFirstIfCurrentHidden: false}));
     }
-    for (const element of [materialFilterSelect, measurementFilterSelect, timeFilterSelect]) {
-      element.addEventListener("change", () => updateBrowserFiles({selectFirstIfCurrentHidden: true}));
+    for (const element of [measurementFilterSelect, timeFilterSelect]) {
+      element?.addEventListener("change", () => updateBrowserFiles({selectFirstIfCurrentHidden: true}));
     }
     if (sampleFilterSelect) sampleFilterSelect.addEventListener("change", () => updateBrowserFiles({selectFirstIfCurrentHidden: true}));
     if (sessionFilterSelect) sessionFilterSelect.addEventListener("change", () => updateBrowserFiles({selectFirstIfCurrentHidden: true}));

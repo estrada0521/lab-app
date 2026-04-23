@@ -128,9 +128,11 @@ function renderList(items) {
 }
 
 function startRename(btn, oldId, nameEl) {
+  const entry = entries.find(item => item.id === oldId) || {id: oldId, display_name: oldId};
+  const oldName = entry.display_name || oldId;
   const input = document.createElement("input");
   input.type = "text";
-  input.value = oldId;
+  input.value = oldName;
   input.className = "rename-input";
   input.addEventListener("click", e => e.stopPropagation());
   nameEl.textContent = "";
@@ -139,20 +141,20 @@ function startRename(btn, oldId, nameEl) {
   input.select();
 
   async function commit() {
-    const newId = input.value.trim();
-    if (!newId || newId === oldId) { renderList(entries); restoreCurrent(); return; }
+    const newName = input.value.trim();
+    if (!newName || newName === oldName) { renderList(entries); restoreCurrent(); return; }
     try {
       await apiJson("/api/rename", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({kind: "analysis", old_id: oldId, new_id: newId}),
+        body: JSON.stringify({kind: "analysis", old_id: oldId, new_name: newName}),
       });
       const idx = entries.findIndex(e => e.id === oldId);
-      if (idx >= 0) entries[idx] = {...entries[idx], id: newId};
-      currentId = newId;
+      if (idx >= 0) entries[idx] = {...entries[idx], display_name: newName};
+      currentId = oldId;
       renderList(entries);
       restoreCurrent();
-      await selectProject(newId);
+      await selectProject(oldId);
     } catch (err) {
       setStatus(err.message, true);
       renderList(entries);
@@ -215,11 +217,10 @@ function renderDetail(detail) {
   analysisMeta.textContent = [detail.created_at && `Created ${detail.created_at}`, detail.updated_at && `Updated ${detail.updated_at}`].filter(Boolean).join(" · ");
 
   // Info panel: key-value
-  renderStructuredInfoGrid(analysisInfo, [
-    ["id", detail.id],
-    ["created", detail.created_at],
-    ["updated", detail.updated_at],
-  ], {
+  const infoRows = [["id", detail.id]];
+  if (detail.created_at) infoRows.push(["created", detail.created_at]);
+  if (detail.updated_at) infoRows.push(["updated", detail.updated_at]);
+  renderStructuredInfoGrid(analysisInfo, infoRows, {
     keyClass: "catalog-key",
     valueClass: "catalog-value",
   });

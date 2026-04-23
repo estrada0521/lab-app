@@ -93,21 +93,19 @@ function selectCalculator(id) {
     renderLinkList(calculatorLinks, []);
     return;
   }
-  calculatorTitle.textContent = calculator.title || calculator.id;
-  calculatorSubtitle.textContent = [calculator.id, calculator.measurement_type].filter(Boolean).join(" · ");
+  calculatorTitle.textContent = calculator.display_name || calculator.id;
+  calculatorSubtitle.textContent = calculator.id || "";
   calculatorReadme.innerHTML = renderMarkdown(calculator.readme || "");
   renderMathInScope(calculatorReadme);
   renderKeyGrid(calculatorInfo, [
     ["id", calculator.id || "—"],
-    ["title", calculator.title || "—"],
-    ["measurement", calculator.measurement_type || "—"],
+    ["display_name", calculator.display_name || "—"],
     ["description", calculator.description || "—"],
-    ["required columns", calculator.required_columns || []],
-    ["metadata", calculator.required_metadata || []],
-    ["parameters", calculator.required_parameters || []],
-    ["python", calculator.dependencies?.python_modules || []],
-    ["assets", calculator.dependencies?.assets || []],
-    ["ui options", calculator.ui_options || []],
+    ["required columns detail", calculator.required_columns_detail || []],
+    ["required parameters detail", calculator.required_parameters_detail || []],
+    ["data metadata policy", calculator.data_metadata_policy || {}],
+    ["transform", calculator.transform_type || "—"],
+    ["output columns", calculator.output_columns || []],
   ]);
   renderRepoJsonPanel(calculatorJson, calculator.manifest_path);
   renderLinkList(calculatorLinks, [
@@ -125,14 +123,14 @@ function renderList(items) {
     button.className = "catalog-list-item";
     button.dataset.id = calculator.id;
     button.innerHTML = `
-      <div class="catalog-list-name" title="Click again to rename">${escapeHtml(calculator.title || calculator.id)}</div>
+      <div class="catalog-list-name" title="Click again to rename">${escapeHtml(calculator.display_name || calculator.id)}</div>
       <div class="catalog-list-meta">${escapeHtml(calculator.id)}</div>
     `;
     button.addEventListener("click", () => {
       if (button.classList.contains("current")) {
         const nameEl = button.querySelector(".catalog-list-name");
         if (nameEl && !nameEl.querySelector("input")) {
-          startRename(button, calculator.id, nameEl);
+          startRename(button, calculator, nameEl);
           return;
         }
       }
@@ -161,10 +159,12 @@ function renderList(items) {
   }
 }
 
-function startRename(btn, oldId, nameEl) {
+function startRename(btn, calculator, nameEl) {
+  const oldId = calculator.id;
+  const oldName = calculator.display_name || oldId;
   const input = document.createElement("input");
   input.type = "text";
-  input.value = oldId;
+  input.value = oldName;
   input.className = "rename-input";
   input.addEventListener("click", e => e.stopPropagation());
   nameEl.textContent = "";
@@ -173,14 +173,14 @@ function startRename(btn, oldId, nameEl) {
   input.select();
 
   async function commit() {
-    const newId = input.value.trim();
-    if (!newId || newId === oldId) { renderList(calculators); selectCalculator(oldId); return; }
+    const newName = input.value.trim();
+    if (!newName || newName === oldName) { renderList(calculators); selectCalculator(oldId); return; }
     try {
-      await postJson("/api/rename", {kind: "calc", old_id: oldId, new_id: newId});
+      await postJson("/api/rename", {kind: "calc", old_id: oldId, new_name: newName});
       const idx = calculators.findIndex(c => c.id === oldId);
-      if (idx >= 0) calculators[idx] = {...calculators[idx], id: newId};
+      if (idx >= 0) calculators[idx] = {...calculators[idx], display_name: newName};
       renderList(calculators);
-      selectCalculator(newId);
+      selectCalculator(oldId);
     } catch (err) {
       setStatus(err.message, true);
       renderList(calculators);

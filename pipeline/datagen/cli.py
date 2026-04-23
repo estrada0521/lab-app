@@ -29,7 +29,6 @@ def main() -> None:
         "data": relative_text(result.output_paths["csv"], root),
         "json": relative_text(result.output_paths["json"], root),
         "rows": result.rows,
-        "measurement_kind": result.measurement_kind,
         "x": result.x_label,
         "y": result.y_label,
     }

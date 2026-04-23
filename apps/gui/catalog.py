@@ -35,6 +35,22 @@ def _first_text(*values: Any) -> str:
     return ""
 
 
+def _conditions_sweep_text(metadata: dict[str, Any]) -> str:
+    conditions = datagen_core.metadata_conditions(metadata)
+    sweep = conditions.get("sweep")
+    if isinstance(sweep, list):
+        return ", ".join(str(item) for item in sweep if str(item).strip())
+    return ""
+
+
+def _conditions_fixed_text(metadata: dict[str, Any]) -> str:
+    conditions = datagen_core.metadata_conditions(metadata)
+    fixed = conditions.get("fixed")
+    if not isinstance(fixed, dict):
+        return ""
+    return ", ".join(f"{key}: {value}" for key, value in fixed.items() if _text(value))
+
+
 def _time_from_metadata(metadata: dict[str, Any]) -> str:
     for key in TIME_KEYS:
         text = _text(metadata.get(key))
@@ -114,8 +130,8 @@ def raw_entry(root: Path, path: Path) -> dict[str, object]:
         "file": path.name,
         "display_name": display_name,
         "created": _rawdata_created(path, metadata, _text(parts.get("session"))),
-        "dependance": _text(metadata.get("dependance")),
-        "fixed": _text(metadata.get("fixed")),
+        "dependance": _conditions_sweep_text(metadata),
+        "fixed": _conditions_fixed_text(metadata),
         **parts,
     }
 
@@ -141,8 +157,8 @@ def data_entry(root: Path, path: Path) -> dict[str, object]:
         meta_path = path.parent / datagen_core.FLAT_METADATA_NAME
         meta = datagen_core.load_optional_json(meta_path)
         display_name = _first_text(meta.get("display_name"), path.parent.name)
-        dependance = _text(meta.get("dependance"))
-        fixed = _text(meta.get("fixed"))
+        dependance = _conditions_sweep_text(meta)
+        fixed = _conditions_fixed_text(meta)
         # New schema: rawdata_id replaces source.rawdata_csv
         rawdata_id = meta.get("rawdata_id", "")
         if rawdata_id:
@@ -250,6 +266,8 @@ def experiment_entries(root: Path) -> list[dict[str, object]]:
                 "sample": sample,
                 "type": mtype,
                 "samples": list({str(item.get("sample", "")) for item in session_raws if item.get("sample")}),
+                "start_date": _text(metadata.get("start_date")),
+                "end_date": _text(metadata.get("end_date")),
                 "time": record_time(metadata, metadata, session_id),
                 "raw_count": len(session_raws),
                 "data_count": sum(1 for item in data_entries if item.get("session") == session_id),
@@ -295,6 +313,11 @@ def experiment_detail(root: Path, session_id: str) -> dict[str, object]:
     metadata = datagen_core.load_json(metadata_path)
     raw_links = [item for item in _raw_entries(root) if item.get("session") == session_id]
     data_links = [item for item in _data_entries(root) if item.get("session") == session_id]
+    sample_ids = list(dict.fromkeys(
+        str(item["sample"]) for item in raw_links if item.get("sample")
+    ))
+    sample_entries_by_id = {str(item.get("id")): item for item in sample_entries(root)}
+    sample_links = [sample_entries_by_id[sid] for sid in sample_ids if sid in sample_entries_by_id]
     return {
         "id": session_id,
         "display_name": _first_text(metadata.get("display_name"), session_id),
@@ -302,6 +325,7 @@ def experiment_detail(root: Path, session_id: str) -> dict[str, object]:
         "metadata_path": datagen_core.relative_text(metadata_path, root),
         "metadata": metadata,
         "attachments": _attachments(record_dir, root) if record_dir.exists() else [],
+        "samples": sample_links,
         "rawdata": raw_links,
         "data": data_links,
     }

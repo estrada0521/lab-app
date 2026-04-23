@@ -29,15 +29,13 @@
           </div>
         </div>
         <div class="browser-header">
-          <input id="browserSearch" type="search" placeholder="Search file / material / type / dependance…" autocomplete="off">
+          <input id="browserSearch" type="search" placeholder="Search file / kind / condition…" autocomplete="off">
           <button id="browserAdvancedBtn" class="browser-advanced-toggle icon-btn" type="button" title="Advanced filters" aria-expanded="false" aria-controls="browserAdvancedFilters">⋯</button>
         </div>
         <div class="browser-filter-grid">
-          <label for="materialFilterSelect">material</label>
-          <select id="materialFilterSelect"></select>
-          <label for="measurementFilterSelect">type</label>
+          <label for="measurementFilterSelect">kind</label>
           <select id="measurementFilterSelect"></select>
-          <label for="timeFilterSelect">dependance</label>
+          <label for="timeFilterSelect">condition</label>
           <select id="timeFilterSelect"></select>
         </div>
         <div class="browser-advanced-filters" id="browserAdvancedFilters">
@@ -152,6 +150,9 @@
             <select id="calculatorSelect"></select>
           </div>
           <div class="calculator-status" id="calculatorStatus"></div>
+          <div class="meta-block parameter-block is-empty" id="calculatorOptionBlock">
+            <div class="parameter-grid" id="calculatorOptions"></div>
+          </div>
           <div class="meta-block parameter-block is-collapsed" id="parameterBlock">
             <button class="parameter-toggle" id="parameterToggle" type="button" aria-expanded="false" aria-controls="boundParameters">
               <span>parameters</span>
@@ -162,8 +163,8 @@
           <div class="output-columns-preview" id="outputColumnsPreview" hidden></div>
           <div class="generate-row">
             <label class="field compact generate-name-field" for="dataOutputName">
-              <span>data name</span>
-              <input id="dataOutputName" placeholder="same as source">
+              <span>Display Name</span>
+              <input id="dataOutputName" placeholder="same as source display name">
             </label>
             <label class="check-row compact continuous-mode-label" for="continuousModeInput" title="Stay on current file after generating (continuous mode)">
               <input id="continuousModeInput" type="checkbox">

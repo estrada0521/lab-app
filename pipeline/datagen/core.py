@@ -24,7 +24,7 @@ RAWDATA_SAMPLE_OVERRIDE_KEYS = {
     "synthesized_by",
     "provided_by",
 }
-RAWDATA_SESSION_OVERRIDE_KEYS = {
+RAWDATA_PARAMETER_KEYS = {
     "strain_calculation",
 }
 RAWDATA_MATERIAL_OVERRIDE_KEYS = {
@@ -41,6 +41,19 @@ PREFERRED_PASSTHROUGH_COLUMNS = [
     "Time Stamp (sec)",
 ]
 
+LEGACY_SWEEP_MAP = {
+    "magnetic field": "field",
+    "field": "field",
+    "temperature": "temperature",
+}
+LEGACY_FIXED_KEY_MAP = {
+    "magnetic field": "field",
+    "field": "field",
+    "temperature": "temperature",
+    "pressure": "pressure",
+    "angle": "angle",
+}
+
 
 @dataclass(frozen=True)
 class FilterContext:
@@ -56,7 +69,12 @@ class FilterContext:
     filter_id: str
     material_meta: dict[str, Any]
     sample_meta: dict[str, Any]
-    session_meta: dict[str, Any]
+    parameter_meta: dict[str, Any]
+
+    @property
+    def session_meta(self) -> dict[str, Any]:
+        # Compatibility shim for older calculators. New code should use parameter_meta.
+        return self.parameter_meta
 
 
 def resolve_path(root: Path, value: str) -> Path:
@@ -132,6 +150,95 @@ def _first_text(*values: Any) -> str:
     return ""
 
 
+def metadata_kind(payload: dict[str, Any]) -> str:
+    return _first_text(
+        payload.get("kind"),
+        payload.get("type"),
+    )
+
+
+def _normalize_sweep_name(value: Any) -> str:
+    text = _first_text(value).lower()
+    return LEGACY_SWEEP_MAP.get(text, text)
+
+
+def _normalize_fixed_key(value: Any) -> str:
+    text = _first_text(value).lower()
+    return LEGACY_FIXED_KEY_MAP.get(text, text)
+
+
+def metadata_conditions(payload: dict[str, Any]) -> dict[str, Any]:
+    conditions_payload = payload.get("conditions")
+    sweep_values: list[str] = []
+    fixed_values: dict[str, str] = {}
+    if isinstance(conditions_payload, dict):
+        raw_sweep = conditions_payload.get("sweep")
+        if isinstance(raw_sweep, list):
+            for item in raw_sweep:
+                name = _normalize_sweep_name(item)
+                if name and name not in sweep_values:
+                    sweep_values.append(name)
+        elif raw_sweep is not None:
+            name = _normalize_sweep_name(raw_sweep)
+            if name:
+                sweep_values.append(name)
+        raw_fixed = conditions_payload.get("fixed")
+        if isinstance(raw_fixed, dict):
+            for key, value in raw_fixed.items():
+                fixed_key = _normalize_fixed_key(key)
+                fixed_value = _first_text(value)
+                if fixed_key and fixed_value:
+                    fixed_values[fixed_key] = fixed_value
+    result: dict[str, Any] = {}
+    if sweep_values:
+        result["sweep"] = sweep_values
+    if fixed_values:
+        result["fixed"] = fixed_values
+    return result
+
+
+def merge_conditions(base: dict[str, Any] | None, extra: dict[str, Any] | None) -> dict[str, Any]:
+    base = base or {}
+    extra = extra or {}
+    merged_sweep: list[str] = []
+    for source in (base.get("sweep"), extra.get("sweep")):
+        if isinstance(source, list):
+            for item in source:
+                name = _normalize_sweep_name(item)
+                if name and name not in merged_sweep:
+                    merged_sweep.append(name)
+        elif source is not None:
+            name = _normalize_sweep_name(source)
+            if name and name not in merged_sweep:
+                merged_sweep.append(name)
+    merged_fixed: dict[str, str] = {}
+    for source in (base.get("fixed"), extra.get("fixed")):
+        if isinstance(source, dict):
+            for key, value in source.items():
+                fixed_key = _normalize_fixed_key(key)
+                fixed_value = _first_text(value)
+                if fixed_key and fixed_value and fixed_key not in merged_fixed:
+                    merged_fixed[fixed_key] = fixed_value
+    result: dict[str, Any] = {}
+    if merged_sweep:
+        result["sweep"] = merged_sweep
+    if merged_fixed:
+        result["fixed"] = merged_fixed
+    return result
+
+
+def inherited_data_metadata(context: FilterContext) -> dict[str, Any]:
+    source_meta = load_optional_json(source_metadata_path(context.repo_root, context.source_path))
+    payload: dict[str, Any] = {}
+    kind = metadata_kind(source_meta)
+    if kind:
+        payload["kind"] = kind
+    conditions = metadata_conditions(source_meta)
+    if conditions:
+        payload["conditions"] = conditions
+    return payload
+
+
 def _merge_metadata(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
     merged = dict(base)
     for key, value in overlay.items():
@@ -168,13 +275,6 @@ def _sample_meta_candidates(root: Path, material_id: str, sample_id: str) -> lis
     ]
 
 
-def _session_meta_candidates(root: Path, material_id: str, sample_id: str, measurement_type: str, session_id: str) -> list[Path]:
-    del material_id, sample_id, measurement_type
-    return [
-        root / FLAT_EXP_DIR / session_id / FLAT_METADATA_NAME,
-    ]
-
-
 def _build_flat_source_context(root: Path, source_path: Path, source_name: str | None = None) -> FilterContext:
     source_meta = load_json(source_metadata_path(root, source_path))
 
@@ -199,10 +299,9 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
         _nested_value(source_meta, "source", "sample_id"),
     )
     measurement_type = _first_text(
-        source_meta.get("measurement_type"),
-        rawdata_meta.get("measurement_type"),
+        source_meta.get("kind"),
+        rawdata_meta.get("kind"),
         source_meta.get("type"),
-        _nested_value(source_meta, "source", "measurement_type"),
     )
     session_id = _first_text(
         source_meta.get("session_id"),
@@ -222,7 +321,7 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
             required=False,
         )
 
-    material_id = _first_text(material_id, sample_meta.get("material_id"))
+    material_id = _first_text(sample_meta.get("material_id"), material_id)
 
     material_meta: dict[str, Any] = {}
     material_meta_path: Path | None = None
@@ -233,14 +332,7 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
             required=False,
         )
 
-    session_meta: dict[str, Any] = {}
-    session_meta_path: Path | None = None
-    if session_id:
-        session_meta, session_meta_path = _load_first_json(
-            _session_meta_candidates(root, material_id, sample_id, measurement_type, session_id),
-            label="experiment metadata",
-            required=False,
-        )
+    parameter_meta: dict[str, Any] = {}
     if isinstance(source_meta.get("material"), dict):
         material_meta = _merge_metadata(material_meta, source_meta["material"])
     material_meta = _merge_metadata(material_meta, _top_level_overrides(source_meta, RAWDATA_MATERIAL_OVERRIDE_KEYS))
@@ -249,18 +341,13 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
         sample_meta = _merge_metadata(sample_meta, source_meta["sample"])
     sample_meta = _merge_metadata(sample_meta, _top_level_overrides(source_meta, RAWDATA_SAMPLE_OVERRIDE_KEYS))
     sample_meta = _merge_metadata(sample_meta, _top_level_overrides(rawdata_meta, RAWDATA_SAMPLE_OVERRIDE_KEYS))
-    if isinstance(source_meta.get("exp"), dict):
-        session_meta = _merge_metadata(session_meta, source_meta["exp"])
-    if isinstance(source_meta.get("session_meta"), dict):
-        session_meta = _merge_metadata(session_meta, source_meta["session_meta"])
-    # rawdata-level strain_calculation overrides exp defaults
-    session_meta = _merge_metadata(session_meta, _top_level_overrides(rawdata_meta, RAWDATA_SESSION_OVERRIDE_KEYS))
-    session_meta = _merge_metadata(session_meta, _top_level_overrides(source_meta, RAWDATA_SESSION_OVERRIDE_KEYS))
+    parameter_meta = _merge_metadata(parameter_meta, _top_level_overrides(rawdata_meta, RAWDATA_PARAMETER_KEYS))
+    parameter_meta = _merge_metadata(parameter_meta, _top_level_overrides(source_meta, RAWDATA_PARAMETER_KEYS))
 
     filter_id = source_name or source_record_name(root, source_path) or source_path.stem
     material_dir = material_meta_path.parent if material_meta_path else root / FLAT_DB_DIR / FLAT_DB_MATERIALS_DIR / material_id
     sample_dir = sample_meta_path.parent if sample_meta_path else root / FLAT_SAMPLES_DIR / sample_id
-    session_dir = session_meta_path.parent if session_meta_path else root / FLAT_EXP_DIR / session_id
+    session_dir = root / FLAT_EXP_DIR / session_id
     return FilterContext(
         repo_root=root,
         source_path=source_path,
@@ -274,7 +361,7 @@ def _build_flat_source_context(root: Path, source_path: Path, source_name: str |
         filter_id=filter_id,
         material_meta=material_meta,
         sample_meta=sample_meta,
-        session_meta=session_meta,
+        parameter_meta=parameter_meta,
     )
 
 
@@ -346,6 +433,21 @@ def data_output_paths(context: FilterContext, name: str) -> dict[str, Path]:
     }
 
 
+def next_data_id(root: Path, *, width: int = 6) -> str:
+    data_root = root / FLAT_DATA_DIR
+    used_ids = {
+        path.name
+        for path in data_root.iterdir()
+        if path.is_dir()
+    } if data_root.is_dir() else set()
+    next_index = 1
+    while True:
+        candidate = f"{next_index:0{width}d}"
+        if candidate not in used_ids:
+            return candidate
+        next_index += 1
+
+
 def ensure_paths(paths: dict[str, Path], keys: list[str], overwrite: bool, repo_root: Path) -> dict[str, Path]:
     existing = [paths[key] for key in keys if key in paths and paths[key].exists()]
     if existing and not overwrite:
@@ -373,10 +475,6 @@ def remove_legacy_file(path: Path) -> None:
 
 def timestamp() -> str:
     return dt.datetime.now().isoformat(timespec="seconds")
-
-
-def range_summary(values: list[float]) -> dict[str, float]:
-    return {"min": min(values), "max": max(values)}
 
 
 def read_metadata(path: Path) -> dict[str, Any]:

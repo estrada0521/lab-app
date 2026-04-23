@@ -268,6 +268,13 @@ async function selectRecord(id) {
       sub: exp.id,
     }));
     renderLinkBlock("experimentLinkBlock", recordExperiments, expItems, {label: "EXPERIMENT"});
+  } else if (pageKind === "experiments") {
+    const sampleItems = (payload.samples || []).map(sample => ({
+      href: `/samples/?id=${encodeURIComponent(sample.id)}`,
+      label: sample.display_name || sample.id,
+      sub: sample.id,
+    }));
+    renderLinkBlock("experimentLinkBlock", recordExperiments, sampleItems, {label: "SAMPLE"});
   }
 
   if (recordImageWrap && recordMainImage) {
@@ -288,13 +295,16 @@ async function selectRecord(id) {
 function renderList(items) {
   recordList.innerHTML = "";
   for (const entry of items) {
+    const metaText = pageKind === "experiments"
+      ? [entry.start_date, entry.end_date].filter(Boolean).join(" - ") || entry.time || ""
+      : entry.id;
     const button = document.createElement("button");
     button.type = "button";
     button.className = "catalog-list-item";
     button.dataset.id = entry.id;
     button.innerHTML = `
       <div class="catalog-list-name" title="Click again to rename">${escapeHtml(entry.display_name || entry.id)}</div>
-      <div class="catalog-list-meta">${escapeHtml(entry.id)}</div>
+      <div class="catalog-list-meta">${escapeHtml(metaText)}</div>
     `;
     button.addEventListener("click", (e) => {
       if (button.classList.contains("current")) {
@@ -401,7 +411,6 @@ async function loadRecords() {
     orientationFilterSelect?.addEventListener("change", applyFilters);
   } else {
     document.getElementById("recordFilterGrid")?.remove();
-    document.getElementById("experimentLinkBlock")?.remove();
   }
 
   if (pageKind === "samples") document.querySelector(".records-link-samples")?.classList.add("current");
