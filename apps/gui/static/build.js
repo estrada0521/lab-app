@@ -272,8 +272,8 @@ initPaneResize({
   leftSplitterId: "catalogLeftSplitter",
   rightSplitterId: "catalogRightSplitter",
   storagePrefix: "lab-build",
-  left: {min: 220, max: 520, reserve: 460},
-  right: {min: 260, max: 560, reserve: 440},
+  left: {min: 140, max: 520, reserve: 460},
+  right: {min: 160, max: 560, reserve: 440},
 });
 
 buildSidePanelSelect?.addEventListener("change", () => setSidePanel(buildSidePanelSelect.value));

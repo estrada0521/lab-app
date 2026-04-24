@@ -4,9 +4,8 @@ function initPaneResize(options = {}) {
   const leftSplitter = options.leftSplitter || document.getElementById(options.leftSplitterId || "leftSplitter");
   const rightSplitter = options.rightSplitter || document.getElementById(options.rightSplitterId || "rightSplitter");
   const storagePrefix = options.storagePrefix || "lab";
-  const breakpoint = options.breakpoint || 1100;
-  const left = Object.assign({min: 220, max: 560, reserve: 420}, options.left || {});
-  const right = Object.assign({min: 260, max: 620, reserve: 420}, options.right || {});
+  const left = Object.assign({min: 140, max: 560, reserve: 420}, options.left || {});
+  const right = Object.assign({min: 160, max: 620, reserve: 420}, options.right || {});
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -31,7 +30,7 @@ function initPaneResize(options = {}) {
   }
 
   function start(side, event) {
-    if (!container || window.matchMedia(`(max-width: ${breakpoint}px)`).matches) return;
+    if (!container) return;
     event.preventDefault();
     const rect = container.getBoundingClientRect();
     document.body.classList.add("is-resizing");

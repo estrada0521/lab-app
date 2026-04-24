@@ -2122,8 +2122,8 @@
       root: viewerMain,
       container: viewerMain,
       storagePrefix: "lab",
-      left: {min: 220, max: 560, reserve: 420},
-      right: {min: 260, max: 620, reserve: 420},
+      left: {min: 140, max: 560, reserve: 420},
+      right: {min: 160, max: 620, reserve: 420},
     });
     syncPlotColors();
     setPlotStyle(plotAppearance.style);
