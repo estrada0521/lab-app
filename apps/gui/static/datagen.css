@@ -677,7 +677,7 @@ body.catalog-page section {
   --right-pane-size: 360px;
   grid-template-columns: minmax(220px, var(--left-pane-size)) 10px minmax(0, 1fr) 10px minmax(260px, var(--right-pane-size));
   gap: 0 10px;
-  padding: 8px 14px 10px;
+  padding: 0 14px;
   min-height: 0;
   flex: 1 1 auto;
 }

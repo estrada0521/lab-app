@@ -75,6 +75,15 @@
 
       <div class="toolbar" role="toolbar" aria-label="Plot toolbar">
         <div class="tool-group">
+          <button class="tool-btn" id="panBtn" title="Pan (drag to move)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1 V8"/><path d="M8 15 V8"/><path d="M1 8 H15"/><path d="M6 3 L8 1 L10 3"/><path d="M6 13 L8 15 L10 13"/><path d="M3 6 L1 8 L3 10"/><path d="M13 6 L15 8 L13 10"/></svg>
+          </button>
+          <button class="tool-btn active" id="zoomBtn" title="Zoom to rectangle (drag to select)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 L14 14"/><path d="M7 5 V9"/><path d="M5 7 H9"/></svg>
+          </button>
+        </div>
+        <div class="sep"></div>
+        <div class="tool-group">
           <button class="tool-btn" id="homeBtn" title="Home (autoscale)">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"><path d="M2 8 L8 2 L14 8"/><path d="M4 7 V14 H12 V7"/></svg>
           </button>
@@ -83,15 +92,6 @@
           </button>
           <button class="tool-btn" id="forwardBtn" title="Forward" disabled>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3 L11 8 L6 13"/></svg>
-          </button>
-        </div>
-        <div class="sep"></div>
-        <div class="tool-group">
-          <button class="tool-btn" id="panBtn" title="Pan (drag to move)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1 V8"/><path d="M8 15 V8"/><path d="M1 8 H15"/><path d="M6 3 L8 1 L10 3"/><path d="M6 13 L8 15 L10 13"/><path d="M3 6 L1 8 L3 10"/><path d="M13 6 L15 8 L13 10"/></svg>
-          </button>
-          <button class="tool-btn active" id="zoomBtn" title="Zoom to rectangle (drag to select)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 L14 14"/><path d="M7 5 V9"/><path d="M5 7 H9"/></svg>
           </button>
         </div>
         <div class="sep"></div>
@@ -105,14 +105,24 @@
           <button class="tool-btn" id="plotPlayBtn" type="button" title="Animate by timestamp">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.8v10.4L12.5 8 4 2.8Z"/></svg>
           </button>
+        </div>
+        <div class="sep"></div>
+        <div class="tool-group">
+          <button class="tool-btn" id="plotSquareToggleBtn" type="button" title="Square aspect ratio" aria-pressed="false">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="1"/></svg>
+          </button>
+          <button class="tool-btn active" id="plotGridToggleBtn" type="button" title="Toggle grid" aria-pressed="true">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><line x1="5" y1="2" x2="5" y2="14"/><line x1="11" y1="2" x2="11" y2="14"/><line x1="2" y1="5" x2="14" y2="5"/><line x1="2" y1="11" x2="14" y2="11"/></svg>
+          </button>
+          <button class="tool-btn" id="plotThemeToggleBtn" type="button" title="Graph theme" aria-pressed="false">
+            <svg class="plot-theme-icon plot-theme-icon-dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg class="plot-theme-icon plot-theme-icon-light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          </button>
+        </div>
+        <div class="sep"></div>
+        <div class="tool-group">
           <button class="tool-btn" id="plotInfoExportBtn" type="button" title="Embed info on export" aria-pressed="false">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v4"/><path d="M8 4.6h.01"/></svg>
-          </button>
-          <button class="tool-btn" id="savePlotPngBtn" type="button" title="Export PNG">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="2.5" width="11.6" height="11" rx="1.8"/><path d="M5 10.5 L7.3 8.2 L9.2 10.1 L11 8.3"/><circle cx="5.2" cy="5.4" r="1"/></svg>
-          </button>
-          <button class="tool-btn" id="savePlotPdfBtn" type="button" title="Export PDF">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5 H9.5 L12.5 5.5 V13.5 H4 Z"/><path d="M9.5 2.5 V5.5 H12.5"/><path d="M5.2 11.2 H10.8"/><path d="M5.2 8.8 H10.8"/></svg>
           </button>
           <div style="position: relative; display: inline-flex;">
             <button class="tool-btn" id="plotColorsBtn" type="button" title="Line color">
@@ -120,12 +130,11 @@
             </button>
             <input id="plotColorInput" class="visually-hidden-color" type="color" value="#111111" tabindex="-1" aria-hidden="true" style="top: 100%; left: 50%;">
           </div>
-          <button class="tool-btn" id="plotGridToggleBtn" type="button" title="Toggle grid" aria-pressed="true">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><line x1="5" y1="2" x2="5" y2="14"/><line x1="11" y1="2" x2="11" y2="14"/><line x1="2" y1="5" x2="14" y2="5"/><line x1="2" y1="11" x2="14" y2="11"/></svg>
+          <button class="tool-btn" id="savePlotPngBtn" type="button" title="Export PNG">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="2.5" width="11.6" height="11" rx="1.8"/><path d="M5 10.5 L7.3 8.2 L9.2 10.1 L11 8.3"/><circle cx="5.2" cy="5.4" r="1"/></svg>
           </button>
-          <button class="tool-btn" id="plotThemeToggleBtn" type="button" title="Graph theme" aria-pressed="false">
-            <svg class="plot-theme-icon plot-theme-icon-dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-            <svg class="plot-theme-icon plot-theme-icon-light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <button class="tool-btn" id="savePlotPdfBtn" type="button" title="Export PDF">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5 H9.5 L12.5 5.5 V13.5 H4 Z"/><path d="M9.5 2.5 V5.5 H12.5"/><path d="M5.2 11.2 H10.8"/><path d="M5.2 8.8 H10.8"/></svg>
           </button>
         </div>
       </div>

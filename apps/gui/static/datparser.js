@@ -53,6 +53,7 @@
     const plotColorInput = document.getElementById("plotColorInput");
     const plotThemeToggleBtn = document.getElementById("plotThemeToggleBtn");
     const plotGridToggleBtn = document.getElementById("plotGridToggleBtn");
+    const plotSquareToggleBtn = document.getElementById("plotSquareToggleBtn");
     const savePlotPngBtn = document.getElementById("savePlotPngBtn");
     const savePlotPdfBtn = document.getElementById("savePlotPdfBtn");
     const sideTabButtons = Array.from(document.querySelectorAll("[data-panel-tab]"));
@@ -113,6 +114,7 @@
     let plotColorTouched = false;
     let plotTheme = "light";
     let plotGridVisible = true;
+    let plotSquareAspect = false;
     let previewFiltersEnabled = false;
     let plotAnimationProgress = 1;
     let plotInfoExportEnabled = false;
@@ -1364,10 +1366,31 @@
       updateHistoryButtons();
     }
 
+    const PLOT_MARGIN = { left: 86, right: 16, top: 16, bottom: 60 };
+
     function resizeCanvas() {
-      const rect = canvas.getBoundingClientRect();
-      const w = Math.max(200, Math.floor(rect.width));
-      const h = Math.max(200, Math.floor(rect.height));
+      let w, h;
+      if (plotSquareAspect) {
+        canvas.style.width = "";
+        canvas.style.height = "";
+        const figRect = canvas.parentElement.getBoundingClientRect();
+        const wFig = Math.floor(figRect.width);
+        const hFig = Math.floor(figRect.height);
+        const side = Math.max(100, Math.min(
+          wFig - PLOT_MARGIN.left - PLOT_MARGIN.right,
+          hFig - PLOT_MARGIN.top - PLOT_MARGIN.bottom
+        ));
+        w = side + PLOT_MARGIN.left + PLOT_MARGIN.right;
+        h = side + PLOT_MARGIN.top + PLOT_MARGIN.bottom;
+        canvas.style.width = w + "px";
+        canvas.style.height = h + "px";
+      } else {
+        canvas.style.width = "";
+        canvas.style.height = "";
+        const rect = canvas.getBoundingClientRect();
+        w = Math.max(200, Math.floor(rect.width));
+        h = Math.max(200, Math.floor(rect.height));
+      }
       if (canvas.width !== w * DPR || canvas.height !== h * DPR) {
         canvas.width = w * DPR;
         canvas.height = h * DPR;
@@ -1377,10 +1400,7 @@
 
     function plotAreas(cssW, cssH, count) {
       const panelCount = Math.max(1, count || 1);
-      const left = 86;
-      const right = 16;
-      const top = 16;
-      const bottom = 60;
+      const { left, right, top, bottom } = PLOT_MARGIN;
       const gap = panelCount > 1 ? 34 : 0;
       const width = cssW - left - right;
       const height = (cssH - top - bottom - gap * (panelCount - 1)) / panelCount;
@@ -2013,6 +2033,18 @@
         plotGridVisible = !plotGridVisible;
         plotGridToggleBtn.classList.toggle("active", plotGridVisible);
         plotGridToggleBtn.setAttribute("aria-pressed", plotGridVisible ? "true" : "false");
+        render();
+      });
+    }
+    if (plotSquareToggleBtn) {
+      plotSquareToggleBtn.addEventListener("click", () => {
+        plotSquareAspect = !plotSquareAspect;
+        plotSquareToggleBtn.classList.toggle("active", plotSquareAspect);
+        plotSquareToggleBtn.setAttribute("aria-pressed", plotSquareAspect ? "true" : "false");
+        if (!plotSquareAspect) {
+          canvas.style.width = "";
+          canvas.style.height = "";
+        }
         render();
       });
     }
