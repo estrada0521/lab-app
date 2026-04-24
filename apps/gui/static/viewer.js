@@ -114,7 +114,7 @@
     let plotColorTouched = false;
     let plotTheme = "light";
     let plotGridVisible = true;
-    let plotSquareAspect = false;
+    let plotSquareAspect = true;
     let previewFiltersEnabled = false;
     let plotAnimationProgress = 1;
     let plotInfoExportEnabled = false;
