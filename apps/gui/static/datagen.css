@@ -655,25 +655,10 @@ body.calculators-page .app-link.active {
 }
 
 body.catalog-page {
-  overflow: hidden;
-  min-width: 640px;
-}
-
-body.catalog-page section {
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
+  --right-pane-size: 360px;
 }
 
 .catalog-page .catalog-main {
-  display: grid;
-  --left-pane-size: 280px;
-  --right-pane-size: 360px;
-  grid-template-columns: minmax(140px, var(--left-pane-size)) 10px minmax(0, 1fr) 10px minmax(160px, var(--right-pane-size));
-  gap: 0 10px;
-  padding: 0 14px;
-  min-height: 0;
   flex: 1 1 auto;
 }
 

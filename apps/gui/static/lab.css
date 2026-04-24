@@ -44,6 +44,9 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      min-width: 640px;
+      --left-pane-size: 280px;
+      --right-pane-size: 320px;
       font-family: var(--font-sans);
       color: var(--text);
       background: var(--bg);
@@ -52,9 +55,6 @@
     }
     body.viewer-page {
       position: relative;
-      --left-pane-size: 280px;
-      --right-pane-size: 320px;
-      min-width: 640px;
     }
 
     /* Minimalist Scrollbar */
@@ -83,7 +83,9 @@
       box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
     }
     body.viewer-page section,
-    body.viewer-page aside.browser-pane {
+    body.viewer-page aside,
+    body.catalog-page section,
+    body.catalog-page aside {
       background: transparent;
       border: none;
       border-radius: 0;
@@ -1019,11 +1021,6 @@
     .footer .status { flex: 1; word-break: break-word; }
     .footer .status:empty { display: none; }
     .footer .status.error { color: var(--warn); font-weight: 600; pointer-events: auto; }
-    @media (max-width: 1400px) {
-      main {
-        grid-template-columns: minmax(140px, var(--left-pane-size)) 10px minmax(0, 1fr) 10px minmax(160px, var(--right-pane-size));
-      }
-    }
 
     .memo-panel {
       display: flex;
