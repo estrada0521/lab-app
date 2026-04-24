@@ -288,6 +288,12 @@
       gap: 8px;
       min-height: 0;
       min-width: 0;
+      container-type: inline-size;
+    }
+    @container (max-width: 200px) {
+      .browser-target-label {
+        display: none;
+      }
     }
     .browser-topline {
       display: flex;
@@ -1216,25 +1222,23 @@
 
     /* ── Add Record button in nav ──────────────────────────────────────── */
     .ar-nav-btn {
-      margin-left: auto;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 28px;
+      width: 32px;
+      height: 32px;
       padding: 0;
-      border: 1px solid var(--line);
+      border: none;
       border-radius: var(--radius);
       background: transparent;
       color: var(--muted);
       cursor: pointer;
       flex-shrink: 0;
-      transition: color 0.12s, border-color 0.12s, background 0.12s;
+      transition: color 0.12s, background 0.12s;
     }
     .ar-nav-btn:hover {
       color: var(--text);
-      border-color: var(--line-strong);
-      background: var(--button-hover);
+      background: var(--subtle-bg);
     }
 
 

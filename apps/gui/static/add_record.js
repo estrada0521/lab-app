@@ -425,7 +425,13 @@
       btn.setAttribute("aria-label", "Add new record");
       btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7.5 2.5V12.5"/><path d="M2.5 7.5H12.5"/></svg>`;
       btn.addEventListener("click", () => openDialog(defaultKind));
-      topline.appendChild(btn);
+
+      const menuWrap = topline.querySelector(".page-menu-wrap");
+      if (menuWrap) {
+        menuWrap.after(btn);
+      } else {
+        topline.prepend(btn);
+      }
     }
   }
 
