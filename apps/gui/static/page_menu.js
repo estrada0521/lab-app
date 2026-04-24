@@ -291,10 +291,16 @@ async function fetchRepoJson(path) {
   return text ? JSON.parse(text) : {};
 }
 
-function renderJsonDump(container, payload) {
+function renderJsonDump(container, payload, options = {}) {
   if (!container) return;
   const text = JSON.stringify(payload ?? {}, null, 2);
-  container.innerHTML = `<pre class="json-view">${escapeInfoHtml(text)}</pre>`;
+  const path = String(options.path || "").trim();
+  container.innerHTML = `<div class="json-panel-head">`
+    + `<div class="json-panel-actions">`
+    + (path ? `<button class="info-action-link tone-finder" type="button" data-info-action="open-finder" data-info-path="${escapeInfoHtml(path)}">Open in Finder</button>` : "")
+    + `</div>`
+    + `</div>`
+    + `<pre class="json-view">${escapeInfoHtml(text)}</pre>`;
 }
 
 async function renderRepoJsonPanel(container, path) {
@@ -302,7 +308,7 @@ async function renderRepoJsonPanel(container, path) {
   container.innerHTML = `<pre class="json-view muted">Loading…</pre>`;
   try {
     const payload = await fetchRepoJson(path);
-    renderJsonDump(container, payload);
+    renderJsonDump(container, payload, {path});
   } catch (err) {
     container.innerHTML = `<pre class="json-view muted">${escapeInfoHtml(err.message || "JSON not found")}</pre>`;
   }

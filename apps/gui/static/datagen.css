@@ -1463,6 +1463,18 @@ body.catalog-page section {
   min-height: 0;
 }
 
+.json-panel-head {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.json-panel-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .json-view {
   margin: 0;
   padding: 10px 12px;

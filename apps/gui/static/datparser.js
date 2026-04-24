@@ -839,8 +839,22 @@
       if (workspaceRelatedLinks) workspaceRelatedLinks.innerHTML = "";
       try {
         const meta = await fetchRepoJson(workspaceMetadataPath(path, "data"));
+        const rawSourcePath = String(currentWorkspaceItem()?.raw_source || "").trim();
+        const rawdataId = String(meta?.rawdata_id || "").trim();
+        const rawEntry = workspaceFiles.find(entry =>
+          entry.kind === "rawdata" && (
+            (rawSourcePath && entry.path === rawSourcePath) ||
+            (rawdataId && entry.id === rawdataId)
+          )
+        ) || null;
         const rows = typeof buildDataInfoRows === "function"
-          ? buildDataInfoRows(meta)
+          ? buildDataInfoRows(meta, {
+            rawEntry,
+            rawSourcePath: rawSourcePath || rawEntry?.path || "",
+            samplesIndex,
+            sampleMaterialIndex,
+            expsStartIndex,
+          })
           : Object.entries(meta || {});
         renderInfoGrid(dataInfoGrid, rows.filter(([key]) => shouldRenderInfoKey(key)));
         renderWorkspaceRelatedLinks(meta);
