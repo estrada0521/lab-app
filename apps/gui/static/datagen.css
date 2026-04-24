@@ -710,26 +710,38 @@ body.catalog-page section {
   align-items: stretch;
   justify-content: flex-start;
   gap: 4px;
-  padding: 12px 10px;
+  padding: 7px 10px;
   border: none;
-  border-bottom: 1px solid var(--line);
+  border-bottom: none;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
 }
 
-.catalog-page .catalog-list-item:hover {
-  background: var(--row-hover);
+.catalog-page .catalog-list-item,
+.browser-file {
+  transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;
 }
 
-.catalog-page .catalog-list-item.current {
+.catalog-page .catalog-list-item:hover,
+.browser-file:hover {
+  background: var(--theme-list-hover-bg);
+  border-color: transparent;
+  border-radius: 10px;
+}
+
+.catalog-page .catalog-list-item.current,
+.browser-file.current {
   background: var(--browser-current-bg);
-  box-shadow: inset 2px 0 0 var(--browser-current-edge);
+}
+
+.browser-file.current {
+  border-color: transparent;
 }
 
 .catalog-page .catalog-list-name {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--theme-text-size);
+  font-weight: 400;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
@@ -738,7 +750,7 @@ body.catalog-page section {
 .catalog-page .catalog-list-item.current .catalog-list-name { cursor: text; }
 
 .catalog-page .catalog-list-meta {
-  font-size: 12px;
+  font-size: var(--theme-text-size);
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;

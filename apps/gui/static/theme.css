@@ -1,4 +1,23 @@
 :root {
   --theme-link-info: rgb(81, 149, 228);
   --theme-link-info-hover: rgb(81, 149, 228);
+  --theme-text-size: 13px;
+  --theme-bg-base: rgb(10, 10, 10);
+  --theme-plot-bg-dark: rgb(10, 10, 10);
+  --theme-panel: rgb(32, 32, 32);
+  --theme-line: rgb(62, 62, 62);
+  --theme-line-strong: rgb(98, 98, 98);
+  --theme-toolbar-bg: rgb(28, 28, 28);
+  --theme-toolbar-border: rgb(62, 62, 62);
+  --theme-input-bg: rgb(21, 21, 21);
+  --theme-button-bg: rgb(45, 45, 45);
+  --theme-button-hover: rgb(56, 56, 56);
+  --theme-button-active: rgb(66, 66, 66);
+  --theme-subtle-bg: rgb(30, 30, 30);
+  --theme-table-head: rgb(32, 32, 32);
+  --theme-row-hover: rgb(48, 48, 48);
+  --theme-grid: rgb(34, 34, 34);
+  --theme-list-hover-bg: rgba(255, 255, 255, 0.07);
+  --theme-browser-current-bg: rgba(255, 255, 255, 0.13);
+  --theme-browser-current-edge: rgba(255, 255, 255, 0.22);
 }

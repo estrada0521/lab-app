@@ -1,36 +1,36 @@
     :root {
       color-scheme: dark;
-      --bg: #0a0a0a;
-      --panel: #202020;
+      --bg: var(--theme-bg-base);
+      --panel: var(--theme-panel);
       --text: #e8eaed;
       --muted: #9aa0a6;
-      --line: #3e3e3e;
-      --line-strong: #626262;
+      --line: var(--theme-line);
+      --line-strong: var(--theme-line-strong);
       --accent: #f2f2f2;
       --accent-hover: #ffffff;
       --selected: rgba(255, 255, 255, 0.12);
       --selected-edge: #f2f2f2;
       --warn: #f28b82;
       --pin-red: #ff3b30;
-      --toolbar-bg: #1c1c1c;
-      --toolbar-border: #3e3e3e;
-      --input-bg: #151515;
-      --button-bg: #2d2d2d;
-      --button-hover: #383838;
-      --button-active: #424242;
-      --subtle-bg: #1e1e1e;
-      --table-head: #202020;
-      --row-hover: #303030;
-      --plot-bg: #0a0a0a;
-      --plot-surface-bg: #0a0a0a;
-      --grid: #222222;
+      --toolbar-bg: var(--theme-toolbar-bg);
+      --toolbar-border: var(--theme-toolbar-border);
+      --input-bg: var(--theme-input-bg);
+      --button-bg: var(--theme-button-bg);
+      --button-hover: var(--theme-button-hover);
+      --button-active: var(--theme-button-active);
+      --subtle-bg: var(--theme-subtle-bg);
+      --table-head: var(--theme-table-head);
+      --row-hover: var(--theme-row-hover);
+      --plot-bg: var(--theme-plot-bg-dark);
+      --plot-surface-bg: var(--theme-plot-bg-dark);
+      --grid: var(--theme-grid);
       --axis: #bdc1c6;
       --plot-muted: #80868b;
       --plot-text: #e8eaed;
       --line-raw: #f2f2f2;
       --line-preview: #9a9a9a;
-      --browser-current-bg: rgba(255, 255, 255, 0.08);
-      --browser-current-edge: rgba(255, 255, 255, 0.22);
+      --browser-current-bg: var(--theme-browser-current-bg);
+      --browser-current-edge: var(--theme-browser-current-edge);
       --radius: 4px;
       --transition: all 0.15s ease;
       --font-sans: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", "Noto Sans CJK JP", "Noto Sans JP", sans-serif;
@@ -144,9 +144,9 @@
       width: 32px;
       min-height: 32px;
       padding: 0;
-      border: 1px solid var(--line);
+      border: none;
       border-radius: var(--radius);
-      background: var(--input-bg);
+      background: transparent;
       color: var(--text);
     }
     .page-menu-popover {
@@ -277,7 +277,7 @@
     aside.browser-pane {
       display: flex;
       flex-direction: column;
-      padding: 4px 0 0;
+      padding: 0;
       gap: 8px;
       min-height: 0;
       min-width: 0;
@@ -287,8 +287,8 @@
       align-items: center;
       justify-content: flex-start;
       gap: 8px;
-      height: var(--top-bar-h);
-      min-height: var(--top-bar-h);
+      min-height: 32px;
+      margin-bottom: -2px;
     }
     .browser-target-toggle {
       display: inline-flex;
@@ -372,42 +372,47 @@
       overflow: auto;
       border: none;
       border-radius: 0;
-      padding: 6px;
+      padding: 0;
       background: transparent;
       font-size: 13px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 0;
     }
     .browser-list:focus { outline: none; }
     .browser-list:focus-visible { outline: 2px solid var(--selected); outline-offset: -2px; border-radius: 6px; }
     .browser-file {
+      width: 100%;
+      font: inherit;
+      font-size: var(--theme-text-size);
       text-align: left;
       display: flex;
       flex-direction: column;
       align-items: stretch;
       justify-content: flex-start;
       gap: 4px;
-      padding: 10px 10px;
-      border: 1px solid transparent;
-      border-radius: 6px;
+      padding: 7px 10px;
+      border: none;
+      border-bottom: none;
+      border-radius: 0;
       background: transparent;
       box-shadow: none;
       transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;
       cursor: pointer;
     }
-    .browser-file:hover {
-      background: var(--subtle-bg);
-      border-color: var(--line);
+    .browser-file:hover,
+    .browser-file:hover:not(:disabled) {
+      background: var(--theme-list-hover-bg);
+      border-color: transparent;
+      border-radius: 10px;
     }
     .browser-file.current {
       background: var(--browser-current-bg);
-      border-color: var(--browser-current-edge);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border-color: transparent;
     }
     .browser-file-name {
-      font-size: 13px;
-      font-weight: 600;
+      font-size: var(--theme-text-size);
+      font-weight: 400;
       color: var(--text);
       white-space: nowrap;
       overflow: hidden;
@@ -416,7 +421,7 @@
     .browser-file.current .browser-file-name { cursor: text; }
     .rename-input {
       font: inherit;
-      font-size: 13px;
+      font-size: var(--theme-text-size);
       font-weight: 700;
       color: var(--text);
       background: var(--bg);
@@ -429,7 +434,7 @@
     }
     .browser-file-meta {
       color: var(--muted);
-      font-size: 12px;
+      font-size: var(--theme-text-size);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1097,8 +1102,8 @@
       --plot-text: #1a1c1e;
     }
     body.plot-theme-dark {
-      --plot-bg: #0a0a0a;
-      --plot-surface-bg: #0a0a0a;
+      --plot-bg: var(--theme-plot-bg-dark);
+      --plot-surface-bg: var(--theme-plot-bg-dark);
       --grid: #202124;
       --axis: #bdc1c6;
       --plot-muted: #80868b;
