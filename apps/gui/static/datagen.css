@@ -752,13 +752,15 @@ body.catalog-page section {
   gap: 12px;
 }
 
-.catalog-page .catalog-content-head {
+.catalog-page .catalog-content-head,
+.workspace-page .catalog-content-head {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.catalog-page .catalog-content-title {
+.catalog-page .catalog-content-title,
+.workspace-page .catalog-content-title {
   font-size: 15px;
   font-weight: 700;
   color: var(--text);

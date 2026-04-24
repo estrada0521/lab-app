@@ -87,7 +87,7 @@ function renderStructuredInfoGrid(container, rows, options = {}) {
     : `<div class="${keyClass}">—</div><div class="${valueClass}">—</div>`;
 }
 
-const INFO_JSON_SKIP = new Set(["memo", "memo_updated_at"]);
+const INFO_JSON_SKIP = new Set(["memo", "memo_updated_at", "default_x", "default_y", "display_name"]);
 
 function renderInfoAsJson(container, payload, options = {}) {
   if (!container) return;

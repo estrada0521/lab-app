@@ -182,10 +182,7 @@ function wsLinkBlock(label, items) {
 
 function renderDetail(detail) {
   buildTitle.textContent = detail.display_name || detail.id;
-  buildMeta.textContent = [
-    detail.created_at && `Created ${detail.created_at}`,
-    detail.updated_at && `Updated ${detail.updated_at}`,
-  ].filter(Boolean).join(" · ");
+  buildMeta.textContent = "";
 
   renderInfoAsJson(buildInfo, detail.metadata || {}, {keyClass: "catalog-key", valueClass: "catalog-value"});
   renderRepoJsonPanel(buildJson, detail.metadata_path);

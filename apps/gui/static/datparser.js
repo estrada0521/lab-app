@@ -45,6 +45,8 @@
     const rawJsonPanel = document.getElementById("rawJsonPanel");
     const dataJsonPanel = document.getElementById("dataJsonPanel");
     const workspaceRelatedLinks = document.getElementById("workspaceRelatedLinks");
+    const workspaceTitle = document.getElementById("workspaceTitle");
+    const workspaceMeta = document.getElementById("workspaceMeta");
     const generateDataBtn = document.getElementById("generateDataBtn");
     const previewFilterBtn = document.getElementById("previewFilterBtn");
     const plotLineModeBtn = document.getElementById("plotLineModeBtn");
@@ -279,6 +281,13 @@
       return entityId;
     }
 
+    function setWorkspaceHeader(path) {
+      const item = workspaceFiles.find(entry => entry.path === path);
+      const fallback = path ? pathStem(path) : "";
+      if (workspaceTitle) workspaceTitle.textContent = item?.display_name || fallback;
+      if (workspaceMeta) workspaceMeta.textContent = "";
+    }
+
     function browserSort(a, b) {
       const aParts = pathParts(a.path, a.kind, a);
       const bParts = pathParts(b.path, b.kind, b);
@@ -494,6 +503,7 @@
       } else {
         currentPath = "";
         currentKind = "rawdata";
+        setWorkspaceHeader("");
         columns = [];
         currentPlot = null;
         updateSelectedKindClass();
@@ -844,6 +854,7 @@
       };
       currentPath = path;
       currentKind = options.kind || inferKind(path);
+      setWorkspaceHeader(path);
       setBrowserTarget(currentKind, {refresh: false});
       currentDataSummary = null;
       selectedRetainedDataColumns = new Set();

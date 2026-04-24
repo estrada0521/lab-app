@@ -182,7 +182,7 @@ function wsLinkBlock(label, items) {
 
 function renderDetail(detail) {
   analysisTitle.textContent = detail.display_name || detail.id;
-  analysisMeta.textContent = [detail.created_at && `Created ${detail.created_at}`, detail.updated_at && `Updated ${detail.updated_at}`].filter(Boolean).join(" · ");
+  analysisMeta.textContent = "";
 
   renderInfoAsJson(analysisInfo, detail.metadata || {}, {keyClass: "catalog-key", valueClass: "catalog-value"});
   renderRepoJsonPanel(analysisJson, detail.metadata_path);

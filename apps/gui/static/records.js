@@ -160,20 +160,10 @@ async function selectRecord(id) {
     button.classList.toggle("current", button.dataset.id === id);
   }
   const payload = await apiJson(detailUrl(id));
-  const entry = entries.find(item => item.id === id) || {};
-  const meta = payload.metadata || {};
 
   recordTitle.textContent = payload.display_name || payload.id || id;
 
-  if (recordMeta) {
-    const parts = [
-      meta.material_id || entry.material,
-      meta.orientation || null,
-      meta.mass_mg != null ? `${meta.mass_mg} mg` : null,
-      meta.owner || entry.owner,
-    ].filter(v => v != null && v !== "");
-    recordMeta.textContent = parts.join(" · ");
-  }
+  if (recordMeta) recordMeta.textContent = "";
 
   renderInfoAsJson(recordInfo, payload.metadata || {}, {keyClass: "catalog-key", valueClass: "catalog-value"});
   await renderRepoJsonPanel(recordJson, payload.metadata_path);
