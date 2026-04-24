@@ -11,10 +11,6 @@
           <button class="ar-tab" role="tab" data-kind="exp" type="button">Experiment</button>
         </div>
       </div>
-      <div class="ar-id-row">
-        <span class="ar-id-label">ID</span>
-        <span class="ar-id-value" id="arId">—</span>
-      </div>
       <div class="ar-form-wrap">
         <div class="ar-form" id="arForm"></div>
       </div>
@@ -89,9 +85,11 @@
     try {
       const data = await apiJson(`/api/next-id?kind=${encodeURIComponent(kind)}`);
       _nextId = data.id;
-      if (el) el.textContent = data.id;
+      const el2 = document.getElementById("arId");
+      if (el2) el2.textContent = data.id;
     } catch {
-      if (el) el.textContent = "—";
+      const el3 = document.getElementById("arId");
+      if (el3) el3.textContent = "—";
     }
   }
 
@@ -249,6 +247,16 @@
     if (!container) return;
     container.innerHTML = "";
     _selectedFile = null;
+    
+    // Inject ID field at the top
+    const idRow = document.createElement("div");
+    idRow.className = "ar-field";
+    idRow.innerHTML = `
+      <label class="ar-label">ID <span class="ar-req">*</span></label>
+      <div style="padding: 8px 12px; font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace; font-size: 14px; color: var(--muted); background: rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);" id="arId">—</div>
+    `;
+    container.appendChild(idRow);
+
     for (const field of (FIELDS[kind] || [])) {
       container.appendChild(buildField(field));
     }

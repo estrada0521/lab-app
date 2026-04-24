@@ -1326,25 +1326,6 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
       border-color: transparent;
     }
-    .ar-id-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 0 20px 12px;
-      flex-shrink: 0;
-    }
-    .ar-id-label {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--muted);
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-    }
-    .ar-id-value {
-      font-size: 14px;
-      font-family: ui-monospace, "Cascadia Code", "Fira Code", monospace;
-      color: var(--text);
-    }
     .ar-form-wrap {
       flex: 1;
       min-height: 0;
@@ -1419,18 +1400,23 @@
       min-width: 0;
     }
     .ar-file-btn {
-      padding: 5px 10px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: var(--button-bg);
+      padding: 8px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
       color: var(--text);
       font: inherit;
-      font-size: 12px;
+      font-size: 13px;
+      font-weight: 600;
       cursor: pointer;
       white-space: nowrap;
       flex-shrink: 0;
+      transition: all 0.2s ease;
     }
-    .ar-file-btn:hover { background: var(--button-hover); border-color: var(--line-strong); }
+    .ar-file-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
     .ar-file-name {
       font-size: 12px;
       color: var(--muted);
@@ -1442,8 +1428,9 @@
     .ar-footer {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px 16px 14px;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 16px;
       border-top: none;
       flex-shrink: 0;
     }
@@ -1459,17 +1446,27 @@
     .ar-status.ar-status-err { color: var(--warn); }
     .ar-status.ar-status-ok { color: #57c775; }
     .ar-submit {
-      padding: 6px 16px;
-      border: 1px solid var(--line-strong);
-      border-radius: var(--radius);
-      background: var(--button-bg);
-      color: var(--text);
+      padding: 8px 24px;
+      border: none;
+      border-radius: 8px;
+      background: var(--text);
+      color: var(--theme-bg-base);
       font: inherit;
-      font-size: 13px;
-      font-weight: 600;
+      font-size: 14px;
+      font-weight: 700;
       cursor: pointer;
       flex-shrink: 0;
-      transition: background 0.12s, border-color 0.12s;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
-    .ar-submit:hover:not(:disabled) { background: var(--button-hover); }
-    .ar-submit:disabled { opacity: 0.45; cursor: default; }
+    .ar-submit:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      background: #ffffff;
+    }
+    .ar-submit:disabled {
+      opacity: 0.5;
+      cursor: default;
+      box-shadow: none;
+      transform: none;
+    }
