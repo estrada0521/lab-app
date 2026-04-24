@@ -1072,10 +1072,13 @@
       justify-content: center;
       background: #ffffff;
       border: 1px solid #ffffff;
-      border-radius: 10px;
+      border-radius: var(--radius);
       color: #000000;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      transition: all 0.15s ease;
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      visibility: visible;
+      transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
     }
     .memo-save-btn:hover:not(:disabled) {
       background: #e6e6e6;
@@ -1084,11 +1087,10 @@
       box-shadow: 0 3px 8px rgba(0,0,0,0.3);
     }
     .memo-save-btn:disabled {
-      opacity: 0.4;
-      background: var(--input-bg);
-      border-color: var(--line);
-      color: var(--muted);
-      box-shadow: none;
+      opacity: 0;
+      transform: scale(0.85) translateY(4px);
+      visibility: hidden;
+      pointer-events: none;
       cursor: default;
     }
     .memo-panel textarea, .memo-input {
@@ -1097,9 +1099,9 @@
       flex: 1;
       resize: none;
       min-height: 60px;
-      padding: 8px 12px;
+      padding: 8px 10px;
       border: 1px solid var(--line);
-      border-radius: 18px;
+      border-radius: var(--radius);
       background: var(--input-bg);
       color: var(--text);
       transition: var(--transition);
