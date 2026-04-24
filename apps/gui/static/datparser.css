@@ -90,14 +90,15 @@
     section.plot-section {
       display: flex;
       flex-direction: column;
-      padding: 4px 0 0;
-      gap: 8px;
+      padding: 0;
+      gap: 12px;
       min-height: 0;
     }
     section.side-section {
       display: flex;
       flex-direction: column;
-      padding: 4px 0 0;
+      padding: 0;
+      gap: 0;
       min-height: 0;
       overflow: hidden;
     }
@@ -135,8 +136,9 @@
       align-items: center;
       gap: 0;
       padding: 0;
-      height: var(--top-bar-h);
-      min-height: var(--top-bar-h);
+      min-height: 32px;
+      flex-shrink: 0;
+      margin-bottom: 6px;
     }
     .page-menu-wrap {
       position: relative;
@@ -1101,7 +1103,7 @@
       min-height: 60px;
       padding: 8px 10px;
       border: 1px solid var(--line);
-      border-radius: var(--radius);
+      border-radius: 8px;
       background: var(--input-bg);
       color: var(--text);
       transition: var(--transition);
