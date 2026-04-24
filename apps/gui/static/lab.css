@@ -1279,7 +1279,7 @@
     .ar-inner {
       position: relative;
       width: min(400px, calc(100vw - 32px));
-      height: min(580px, 85vh);
+      height: min(610px, 98vh);
       display: flex;
       flex-direction: column;
       background: transparent;
