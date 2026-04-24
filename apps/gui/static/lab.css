@@ -65,7 +65,7 @@
 
     main {
       display: grid;
-      grid-template-columns: minmax(220px, var(--left-pane-size)) 10px minmax(0, 1fr) 10px minmax(260px, var(--right-pane-size));
+      grid-template-columns: minmax(140px, var(--left-pane-size)) 10px minmax(0, 1fr) 10px minmax(160px, var(--right-pane-size));
       gap: 0 10px;
       padding: 0 14px;
       align-items: stretch;
@@ -1021,7 +1021,7 @@
     .footer .status.error { color: var(--warn); font-weight: 600; pointer-events: auto; }
     @media (max-width: 1400px) {
       main {
-        grid-template-columns: minmax(220px, var(--left-pane-size)) 10px minmax(0, 1fr) 10px minmax(240px, var(--right-pane-size));
+        grid-template-columns: minmax(140px, var(--left-pane-size)) 10px minmax(0, 1fr) 10px minmax(160px, var(--right-pane-size));
       }
     }
 

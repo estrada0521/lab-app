@@ -656,6 +656,7 @@ body.calculators-page .app-link.active {
 
 body.catalog-page {
   overflow: hidden;
+  min-width: 640px;
 }
 
 body.catalog-page section {
@@ -669,7 +670,7 @@ body.catalog-page section {
   display: grid;
   --left-pane-size: 280px;
   --right-pane-size: 360px;
-  grid-template-columns: minmax(220px, var(--left-pane-size)) 10px minmax(0, 1fr) 10px minmax(260px, var(--right-pane-size));
+  grid-template-columns: minmax(140px, var(--left-pane-size)) 10px minmax(0, 1fr) 10px minmax(160px, var(--right-pane-size));
   gap: 0 10px;
   padding: 0 14px;
   min-height: 0;
@@ -979,52 +980,7 @@ body.catalog-page section {
 }
 
 /* ≤1100px: hide splitters; right pane wraps below left+center */
-@media (max-width: 1100px) {
-  .catalog-page .catalog-main {
-    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
-  }
 
-  .catalog-page .catalog-splitter {
-    display: none;
-  }
-
-  .catalog-page .catalog-side-pane {
-    grid-column: 1 / -1;
-    max-height: 320px;
-    min-height: 200px;
-  }
-}
-
-/* ≤640px: single-column flex stack — all three panes visible */
-@media (max-width: 640px) {
-  .catalog-page .catalog-main {
-    display: flex;
-    flex-direction: column;
-    padding: 6px 8px;
-    gap: 0;
-    overflow-y: auto;
-  }
-
-  .catalog-page .catalog-list-pane {
-    flex: 0 0 auto;
-    max-height: 220px;
-    min-height: 120px;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .catalog-page .catalog-content-pane {
-    flex: 1 1 auto;
-    min-height: 200px;
-    overflow: auto;
-  }
-
-  .catalog-page .catalog-side-pane {
-    flex: 0 0 auto;
-    max-height: 260px;
-    min-height: 180px;
-    border-top: 1px solid var(--line);
-  }
-}
 
 
 /* Records page: filter grid */
