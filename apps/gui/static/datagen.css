@@ -733,10 +733,8 @@ body.catalog-page section {
 .catalog-page .catalog-list-item.current,
 .browser-file.current {
   background: var(--browser-current-bg);
-}
-
-.browser-file.current {
   border-color: transparent;
+  border-radius: 10px;
 }
 
 .catalog-page .catalog-list-name {

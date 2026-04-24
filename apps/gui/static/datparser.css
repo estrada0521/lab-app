@@ -293,30 +293,27 @@
     .browser-target-toggle {
       display: inline-flex;
       align-items: center;
-      gap: 0;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      overflow: hidden;
-      background: var(--input-bg);
-    }
-    .browser-target-btn {
-      min-height: 32px;
-      padding: 0 10px;
+      gap: 7px;
+      padding: 0;
       border: none;
-      border-right: 1px solid var(--line);
-      border-radius: 0;
       background: transparent;
       color: var(--muted);
       font-size: 12px;
       font-weight: 600;
-      white-space: nowrap;
+      cursor: pointer;
+      flex-shrink: 0;
     }
-    .browser-target-btn:last-child {
-      border-right: none;
+    .browser-target-toggle:hover:not(:disabled),
+    .browser-target-toggle:active:not(:disabled) { background: transparent; border-color: transparent; transform: none; }
+    .browser-target-label[data-side="raw"] { opacity: 1; }
+    .browser-target-label[data-side="data"] { opacity: 0.45; }
+    .browser-target-toggle.is-data .browser-target-label[data-side="raw"] { opacity: 0.45; }
+    .browser-target-toggle.is-data .browser-target-label[data-side="data"] { opacity: 1; }
+    .browser-target-knob {
+      transition: transform 0.2s ease;
     }
-    .browser-target-btn.active {
-      background: var(--subtle-bg);
-      color: var(--text);
+    .browser-target-toggle.is-data .browser-target-knob {
+      transform: translateX(16px);
     }
     .browser-header {
       display: flex;
@@ -409,6 +406,7 @@
     .browser-file.current {
       background: var(--browser-current-bg);
       border-color: transparent;
+      border-radius: 10px;
     }
     .browser-file-name {
       font-size: var(--theme-text-size);

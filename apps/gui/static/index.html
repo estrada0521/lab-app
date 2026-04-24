@@ -25,10 +25,14 @@
               <a class="page-menu-link" href="/build/">Build</a>
             </div>
           </div>
-          <div class="browser-target-toggle" role="group" aria-label="Browse target">
-            <button class="browser-target-btn active" id="browserTargetRawBtn" type="button">Raw data</button>
-            <button class="browser-target-btn" id="browserTargetDataBtn" type="button">Data</button>
-          </div>
+          <button class="browser-target-toggle" id="browserTargetToggle" type="button" title="Toggle: Raw data / Data">
+            <span class="browser-target-label" data-side="raw">rawdata</span>
+            <svg class="browser-target-svg" width="36" height="20" viewBox="0 0 36 20" fill="none" aria-hidden="true">
+              <rect x="1" y="2" width="34" height="16" rx="8" fill="#34c759" opacity="0.9"/>
+              <circle class="browser-target-knob" cx="10" cy="10" r="6" fill="#ffffff"/>
+            </svg>
+            <span class="browser-target-label" data-side="data">data</span>
+          </button>
         </div>
         <div class="browser-header">
           <input id="browserSearch" type="search" placeholder="Search file / kind / condition…" autocomplete="off">

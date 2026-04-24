@@ -2,8 +2,7 @@
     const browserTree = document.getElementById("browserTree");
     const workspaceMain = document.getElementById("workspaceMain");
     const browserSearch = document.getElementById("browserSearch");
-    const browserTargetRawBtn = document.getElementById("browserTargetRawBtn");
-    const browserTargetDataBtn = document.getElementById("browserTargetDataBtn");
+    const browserTargetToggle = document.getElementById("browserTargetToggle");
     const measurementFilterSelect = document.getElementById("measurementFilterSelect");
     const timeFilterSelect = document.getElementById("timeFilterSelect");
     const browserAdvancedBtn = document.getElementById("browserAdvancedBtn");
@@ -302,8 +301,7 @@
     function setBrowserTarget(kind, options = {}) {
       browserTarget = kind === "data" ? "data" : "rawdata";
       localStorage.setItem("datparser-browser-target", browserTarget);
-      browserTargetRawBtn?.classList.toggle("active", browserTarget === "rawdata");
-      browserTargetDataBtn?.classList.toggle("active", browserTarget === "data");
+      browserTargetToggle?.classList.toggle("is-data", browserTarget === "data");
       if (options.refresh !== false) {
         updateBrowserFiles({selectFirstIfCurrentHidden: options.selectFirstIfCurrentHidden !== false});
       }
@@ -332,7 +330,6 @@
         const primaryLabel = browserPrimaryLabel(item, entityId);
         row.innerHTML = `
           <div class="browser-file-name" title="Click again to rename">${escapeHtml(primaryLabel)}</div>
-          <div class="browser-file-meta">${escapeHtml(entityId)}</div>
         `;
         row.addEventListener("click", (e) => {
           if (row.classList.contains("current")) {
@@ -1956,8 +1953,7 @@
     for (const button of sideTabButtons) {
       button.addEventListener("click", () => setSidePanelTab(button.dataset.panelTab));
     }
-    browserTargetRawBtn?.addEventListener("click", () => setBrowserTarget("rawdata"));
-    browserTargetDataBtn?.addEventListener("click", () => setBrowserTarget("data"));
+    browserTargetToggle?.addEventListener("click", () => setBrowserTarget(browserTarget === "rawdata" ? "data" : "rawdata"));
     if (browserSearch) {
       browserSearch.addEventListener("input", () => updateBrowserFiles({selectFirstIfCurrentHidden: false}));
     }
