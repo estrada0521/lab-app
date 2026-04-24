@@ -253,7 +253,7 @@
     idRow.className = "ar-field";
     idRow.innerHTML = `
       <label class="ar-label">ID <span class="ar-req">*</span></label>
-      <div style="padding: 8px 12px; font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace; font-size: 14px; color: var(--muted); background: rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);" id="arId">—</div>
+      <div style="padding: 4px 12px; font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace; font-size: 13px; color: var(--text); background: rgba(255,255,255,0.06); border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); box-shadow: inset 0 0 16px rgba(255,255,255,0.05);" id="arId">—</div>
     `;
     container.appendChild(idRow);
 
