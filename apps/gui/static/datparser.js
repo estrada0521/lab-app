@@ -74,7 +74,10 @@
     let currentKind = "rawdata";
     let workspaceFiles = [];
     let samplesIndex = {};
-    let expsIndex = {};    let rawFiles = [];
+    let sampleMaterialIndex = {};
+    let expsIndex = {};
+    let expsStartIndex = {};
+    let rawFiles = [];
     let generatedDataFiles = [];
     let currentDataSummary = null;
     let allCalculators = [];
@@ -475,7 +478,9 @@
       generatedDataFiles = dataPayload.files || [];
       allCalculators = calculatorsPayload.calculators || [];
       samplesIndex = rawPayload.samples_index || dataPayload.samples_index || {};
+      sampleMaterialIndex = rawPayload.sample_material_index || dataPayload.sample_material_index || {};
       expsIndex = rawPayload.exps_index || dataPayload.exps_index || {};
+      expsStartIndex = rawPayload.exps_start_index || dataPayload.exps_start_index || {};
       const rawEntries = rawPayload.entries || rawFiles.map(path => ({path, file: path.split("/").pop() || ""}));
       const dataEntries = dataPayload.entries || generatedDataFiles.map(path => ({path, file: path.split("/").pop() || ""}));
       workspaceFiles = [
@@ -758,7 +763,10 @@
       rawInfoGrid.innerHTML = "";
       try {
         const meta = await fetchRepoJson(workspaceMetadataPath(path, "rawdata"));
-        renderInfoAsJson(rawInfoGrid, meta, wsInfoOptions);
+        const rows = typeof buildRawdataInfoRows === "function"
+          ? buildRawdataInfoRows(meta, {samplesIndex, sampleMaterialIndex, expsStartIndex, rawPath: path})
+          : Object.entries(meta || {});
+        renderInfoGrid(rawInfoGrid, rows.filter(([key]) => shouldRenderInfoKey(key)));
       } catch (_) {
         rawInfoGrid.innerHTML = '<div class="data-info-key muted">—</div><div></div>';
       }
@@ -831,7 +839,10 @@
       if (workspaceRelatedLinks) workspaceRelatedLinks.innerHTML = "";
       try {
         const meta = await fetchRepoJson(workspaceMetadataPath(path, "data"));
-        renderInfoAsJson(dataInfoGrid, meta, wsInfoOptions);
+        const rows = typeof buildDataInfoRows === "function"
+          ? buildDataInfoRows(meta)
+          : Object.entries(meta || {});
+        renderInfoGrid(dataInfoGrid, rows.filter(([key]) => shouldRenderInfoKey(key)));
         renderWorkspaceRelatedLinks(meta);
       } catch (_) {
         dataInfoGrid.innerHTML = '<div class="data-info-key muted">—</div><div></div>';

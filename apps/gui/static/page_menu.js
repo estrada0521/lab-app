@@ -40,9 +40,88 @@ function isInfoPrimitive(value) {
   return value === null || value === undefined || typeof value === "string" || typeof value === "number" || typeof value === "boolean";
 }
 
+function isInfoSpecialValue(value) {
+  return Boolean(value && typeof value === "object" && typeof value.__infoType === "string");
+}
+
+function infoLinkValue(href, label, options = {}) {
+  if (!href || !label) return label || "—";
+  return {
+    __infoType: "link",
+    href,
+    label,
+    missing: Boolean(options.missing),
+  };
+}
+
+function infoActionValue(label, action, options = {}) {
+  if (!label || !action) return label || "—";
+  return {
+    __infoType: "action",
+    label,
+    action,
+    tone: options.tone || "",
+    path: options.path || "",
+  };
+}
+
+function infoCalcValue(calc) {
+  if (!calc || typeof calc !== "object") return "—";
+  return {
+    __infoType: "calc",
+    calcId: calc.id || "",
+    params: calc.params || {},
+    overrides: calc.overrides || {},
+  };
+}
+
+function renderInfoSpecialValue(value) {
+  if (!isInfoSpecialValue(value)) return renderInfoValueTree(value);
+  if (value.__infoType === "link") {
+    const href = String(value.href || "").trim();
+    const label = String(value.label || "").trim();
+    const missingClass = value.missing ? " missing" : "";
+    if (!href || !label) return "—";
+    return `<a class="catalog-record-link info-link-value${missingClass}" href="${escapeInfoHtml(href)}">`
+      + `<span class="catalog-record-link-label">${escapeInfoHtml(label)}</span>`
+      + `</a>`;
+  }
+  if (value.__infoType === "action") {
+    const label = String(value.label || "").trim();
+    const action = String(value.action || "").trim();
+    const tone = String(value.tone || "").trim();
+    const path = String(value.path || "").trim();
+    if (!label || !action) return "—";
+    return `<span class="info-action-wrap">`
+      + `<button class="info-action-link${tone ? ` tone-${escapeInfoHtml(tone)}` : ""}" type="button" data-info-action="${escapeInfoHtml(action)}"${path ? ` data-info-path="${escapeInfoHtml(path)}"` : ""}>${escapeInfoHtml(label)}</button>`
+      + `</span>`;
+  }
+  if (value.__infoType === "calc") {
+    const calcId = String(value.calcId || "").trim();
+    const params = value.params && typeof value.params === "object" ? Object.entries(value.params) : [];
+    const overrides = value.overrides && typeof value.overrides === "object" ? Object.entries(value.overrides) : [];
+    const labelFor = typeof humanizeInfoLabel === "function"
+      ? humanizeInfoLabel
+      : key => String(key || "");
+    return `<details class="info-calc-disclosure">`
+      + `<summary class="info-calc-summary"><span class="info-calc-summary-text">parameter</span><span class="info-calc-summary-label">></span></summary>`
+      + `<div class="info-calc-body">`
+      + (calcId ? `<div class="info-calc-id">${escapeInfoHtml(calcId)}</div>` : "")
+      + params.map(([key, item]) => `<div class="info-calc-key">${escapeInfoHtml(key)}</div><div class="info-calc-value">${renderInfoValueTree(item)}</div>`).join("")
+      + (overrides.length
+        ? `<div class="info-calc-section">Override</div>`
+          + overrides.map(([key, item]) => `<div class="info-calc-key">${escapeInfoHtml(labelFor(key))}</div><div class="info-calc-value">${renderInfoValueTree(item)}</div>`).join("")
+        : "")
+      + `</div>`
+      + `</details>`;
+  }
+  return escapeInfoHtml(JSON.stringify(value));
+}
+
 function renderInfoValueTree(value) {
   if (value === null || value === undefined || value === "") return "—";
   if (isInfoPrimitive(value)) return escapeInfoHtml(value);
+  if (isInfoSpecialValue(value)) return renderInfoSpecialValue(value);
   if (Array.isArray(value)) {
     if (!value.length) return "—";
     return renderInfoTreeEntries(value.map((item, index) => [String(index + 1), item]));
@@ -75,7 +154,12 @@ function renderStructuredInfoGrid(container, rows, options = {}) {
   const filteredRows = (rows || []).filter(row => Array.isArray(row) && row.length >= 2);
   container.innerHTML = filteredRows.length
     ? filteredRows.map(([key, value]) => {
-      const structured = value && typeof value === "object";
+      if (isInfoSpecialValue(value) && value.__infoType === "calc") {
+        return `<div class="info-group info-calc-group">`
+          + `<div class="${valueClass} info-group-body info-calc-group-body">${renderInfoValueTree(value)}</div>`
+          + `</div>`;
+      }
+      const structured = value && typeof value === "object" && !isInfoSpecialValue(value);
       if (structured) {
         return `<div class="info-group">`
           + `<div class="${keyClass} info-group-key">${escapeInfoHtml(key)}</div>`
@@ -87,13 +171,41 @@ function renderStructuredInfoGrid(container, rows, options = {}) {
     : `<div class="${keyClass}">—</div><div class="${valueClass}">—</div>`;
 }
 
+document.addEventListener("click", async event => {
+  const actionEl = event.target instanceof Element ? event.target.closest("[data-info-action]") : null;
+  if (!actionEl) return;
+  const action = actionEl.getAttribute("data-info-action") || "";
+  if (!action) return;
+  if (action === "open-finder") {
+    const path = actionEl.getAttribute("data-info-path") || "";
+    if (!path) return;
+    event.preventDefault();
+    try {
+      const response = await fetch("/api/open-external", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({path, app: "Finder"}),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || response.statusText);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+});
+
 const INFO_JSON_SKIP = new Set(["memo", "memo_updated_at", "default_x", "default_y", "display_name"]);
+
+function shouldRenderInfoKey(key, extraSkipKeys = []) {
+  return !new Set([...INFO_JSON_SKIP, ...extraSkipKeys]).has(key);
+}
 
 function renderInfoAsJson(container, payload, options = {}) {
   if (!container) return;
-  const skipKeys = new Set([...(options.skipKeys || []), ...INFO_JSON_SKIP]);
   const data = payload && typeof payload === "object" ? payload : {};
-  const rows = Object.entries(data).filter(([key]) => !skipKeys.has(key));
+  const rows = Object.entries(data).filter(([key]) => shouldRenderInfoKey(key, options.skipKeys || []));
   renderStructuredInfoGrid(container, rows, options);
 }
 

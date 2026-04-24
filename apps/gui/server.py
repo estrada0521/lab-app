@@ -31,6 +31,10 @@ STATIC_TYPES = {
     "records.html": "text/html; charset=utf-8",
     "analysis.html": "text/html; charset=utf-8",
     "build.html": "text/html; charset=utf-8",
+    "info/common.js": "application/javascript; charset=utf-8",
+    "info/data.js": "application/javascript; charset=utf-8",
+    "info/rawdata.js": "application/javascript; charset=utf-8",
+    "theme.css": "text/css; charset=utf-8",
     "datparser.css": "text/css; charset=utf-8",
     "datparser.js": "application/javascript; charset=utf-8",
     "datagen.css": "text/css; charset=utf-8",
@@ -47,7 +51,7 @@ STATIC_TYPES = {
     "build.js": "application/javascript; charset=utf-8",
 }
 STATIC_VERSION = str(
-    max(path.stat().st_mtime_ns for path in STATIC_DIR.iterdir() if path.is_file())
+    max(path.stat().st_mtime_ns for path in STATIC_DIR.rglob("*") if path.is_file())
 )
 DB_ROOT = Path.cwd().resolve()
 
@@ -336,7 +340,8 @@ class DatParserHandler(BaseHTTPRequestHandler):
 
     def send_static(self, request_path: str) -> None:
         name = request_path.removeprefix("/static/")
-        if "/" in name or name not in STATIC_TYPES:
+        parts = Path(name).parts
+        if not name or any(part in {"", ".", ".."} for part in parts) or name not in STATIC_TYPES:
             self.send_json({"error": "not found"}, HTTPStatus.NOT_FOUND)
             return
         self.send_file(STATIC_DIR / name, STATIC_TYPES[name])
@@ -379,26 +384,38 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 self.send_static(parsed.path)
             elif parsed.path == "/api/raw-files":
                 raw_paths = core.discover_raw_files(self.server.db_root)
-                samples_idx = {e["id"]: e.get("display_name", e["id"]) for e in catalog.sample_entries(self.server.db_root)}
-                exps_idx = {e["id"]: e.get("display_name", e["id"]) for e in catalog.experiment_entries(self.server.db_root)}
+                sample_entries = catalog.sample_entries(self.server.db_root)
+                exp_entries = catalog.experiment_entries(self.server.db_root)
+                samples_idx = {e["id"]: e.get("display_name", e["id"]) for e in sample_entries}
+                sample_material_idx = {e["id"]: e.get("material", "") for e in sample_entries}
+                exps_idx = {e["id"]: e.get("display_name", e["id"]) for e in exp_entries}
+                exps_start_idx = {e["id"]: e.get("start_date", "") for e in exp_entries}
                 self.send_json(
                     {
                         "files": [core.relative_text(path, self.server.db_root) for path in raw_paths],
                         "entries": [catalog.raw_entry(self.server.db_root, path) for path in raw_paths],
                         "samples_index": samples_idx,
+                        "sample_material_index": sample_material_idx,
                         "exps_index": exps_idx,
+                        "exps_start_index": exps_start_idx,
                     }
                 )
             elif parsed.path == "/api/data-files":
                 data_paths = data_core.discover_data_files(self.server.db_root)
-                samples_idx = {e["id"]: e.get("display_name", e["id"]) for e in catalog.sample_entries(self.server.db_root)}
-                exps_idx = {e["id"]: e.get("display_name", e["id"]) for e in catalog.experiment_entries(self.server.db_root)}
+                sample_entries = catalog.sample_entries(self.server.db_root)
+                exp_entries = catalog.experiment_entries(self.server.db_root)
+                samples_idx = {e["id"]: e.get("display_name", e["id"]) for e in sample_entries}
+                sample_material_idx = {e["id"]: e.get("material", "") for e in sample_entries}
+                exps_idx = {e["id"]: e.get("display_name", e["id"]) for e in exp_entries}
+                exps_start_idx = {e["id"]: e.get("start_date", "") for e in exp_entries}
                 self.send_json(
                     {
                         "files": [core.relative_text(path, self.server.db_root) for path in data_paths],
                         "entries": [catalog.data_entry(self.server.db_root, path) for path in data_paths],
                         "samples_index": samples_idx,
+                        "sample_material_index": sample_material_idx,
                         "exps_index": exps_idx,
+                        "exps_start_index": exps_start_idx,
                     }
                 )
             elif parsed.path == "/api/samples":
@@ -617,7 +634,10 @@ class DatParserHandler(BaseHTTPRequestHandler):
                     return
                 abs_path = core.path_from_client(self.server.db_root, rel_path)
                 app = str(payload.get("app", "Antigravity")).strip() or "Antigravity"
-                subprocess.Popen(["open", "-a", app, str(abs_path)])
+                if app == "Finder":
+                    subprocess.Popen(["open", "-R", str(abs_path)])
+                else:
+                    subprocess.Popen(["open", "-a", app, str(abs_path)])
                 self.send_json({"ok": True, "path": rel_path, "app": app})
             else:
                 self.send_json({"error": "not found"}, HTTPStatus.NOT_FOUND)
