@@ -3,11 +3,23 @@ function initPageMenu() {
   const popover = document.getElementById("pageMenuPopover");
   if (!trigger || !popover) return;
 
+  function position() {
+    const r = trigger.getBoundingClientRect();
+    popover.style.top = `${r.bottom + 6}px`;
+    popover.style.left = `${r.left}px`;
+    // keep within viewport
+    const pw = popover.offsetWidth || 180;
+    if (r.left + pw > window.innerWidth - 8) {
+      popover.style.left = `${Math.max(8, window.innerWidth - pw - 8)}px`;
+    }
+  }
+
   function setOpen(open) {
     const expanded = Boolean(open);
     popover.hidden = !expanded;
     trigger.setAttribute("aria-expanded", expanded ? "true" : "false");
     trigger.classList.toggle("active", expanded);
+    if (expanded) position();
   }
 
   trigger.addEventListener("click", event => {
