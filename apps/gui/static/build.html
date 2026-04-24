@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Analysis</title>
+  <title>Build</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <link rel="stylesheet" href="/static/datparser.css?v=__STATIC_VERSION__">
   <link rel="stylesheet" href="/static/datagen.css?v=__STATIC_VERSION__">
 </head>
-<body class="catalog-page analysis-page" data-page="analysis">
+<body class="catalog-page build-page" data-page="build">
   <main class="catalog-main">
     <aside class="catalog-pane catalog-list-pane">
       <div class="catalog-pane-topline">
@@ -21,34 +21,34 @@
             <a class="page-menu-link" href="/samples/">Samples</a>
             <a class="page-menu-link" href="/calculators/">Calculators</a>
             <a class="page-menu-link" href="/experiments/">Experiments</a>
-            <a class="page-menu-link current" href="/analysis/">Analysis</a>
-            <a class="page-menu-link" href="/build/">Build</a>
+            <a class="page-menu-link" href="/analysis/">Analysis</a>
+            <a class="page-menu-link current" href="/build/">Build</a>
           </div>
         </div>
       </div>
-      <div class="catalog-list" id="analysisList"></div>
+      <div class="catalog-list" id="buildList"></div>
     </aside>
     <div class="pane-splitter catalog-splitter" id="catalogLeftSplitter" aria-hidden="true"></div>
 
     <section class="catalog-pane catalog-content-pane">
       <div class="catalog-content-head">
-        <div class="catalog-content-title" id="analysisTitle"></div>
-        <div class="catalog-content-meta" id="analysisMeta"></div>
+        <div class="catalog-content-title" id="buildTitle"></div>
+        <div class="catalog-content-meta" id="buildMeta"></div>
       </div>
-      <div class="analysis-body" id="analysisBody"></div>
+      <div class="analysis-body" id="buildBody"></div>
     </section>
     <div class="pane-splitter catalog-splitter" id="catalogRightSplitter" aria-hidden="true"></div>
 
     <aside class="catalog-pane catalog-side-pane">
       <div class="catalog-pane-topline">
-        <select class="side-panel-select" id="analysisSidePanelSelect" aria-label="Right panel section">
+        <select class="side-panel-select" id="buildSidePanelSelect" aria-label="Right panel section">
           <option value="info">Info</option>
           <option value="json">JSON</option>
           <option value="links">Links</option>
         </select>
       </div>
-      <div id="analysisSideInfo" class="data-info-panel">
-        <div class="catalog-key-grid" id="analysisInfo"></div>
+      <div id="buildSideInfo" class="data-info-panel">
+        <div class="catalog-key-grid" id="buildInfo"></div>
         <div class="memo-panel">
           <div class="memo-actions">
             <button class="memo-btn" id="memoSaveBtn" disabled>Save</button>
@@ -58,11 +58,11 @@
           <textarea class="memo-input" id="memoInput" placeholder="Quick notes…" disabled></textarea>
         </div>
       </div>
-      <div id="analysisSideJson" hidden>
-        <div class="json-panel-body" id="analysisJson"></div>
+      <div id="buildSideJson" hidden>
+        <div class="json-panel-body" id="buildJson"></div>
       </div>
-      <div id="analysisSideLinks" hidden>
-        <div class="related-links" id="analysisLinks"></div>
+      <div id="buildSideLinks" hidden>
+        <div class="related-links" id="buildLinks"></div>
       </div>
     </aside>
   </main>
@@ -77,6 +77,6 @@
   <script src="/static/markdown_render.js?v=__STATIC_VERSION__"></script>
   <script src="/static/page_menu.js?v=__STATIC_VERSION__"></script>
   <script src="/static/pane_resize.js?v=__STATIC_VERSION__"></script>
-  <script src="/static/analysis.js?v=__STATIC_VERSION__"></script>
+  <script src="/static/build.js?v=__STATIC_VERSION__"></script>
 </body>
 </html>

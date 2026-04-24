@@ -27,7 +27,7 @@ function createRawMemoPanel(options) {
   function setStatus(text, kind) {
     if (!statusEl) return;
     statusEl.textContent = text || "";
-    statusEl.classList.remove("dirty", "saved", "error", "info");
+    statusEl.className = "memo-status";
     if (kind) statusEl.classList.add(kind);
   }
 

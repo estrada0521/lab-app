@@ -87,6 +87,16 @@ function renderStructuredInfoGrid(container, rows, options = {}) {
     : `<div class="${keyClass}">—</div><div class="${valueClass}">—</div>`;
 }
 
+const INFO_JSON_SKIP = new Set(["memo", "memo_updated_at"]);
+
+function renderInfoAsJson(container, payload, options = {}) {
+  if (!container) return;
+  const skipKeys = new Set([...(options.skipKeys || []), ...INFO_JSON_SKIP]);
+  const data = payload && typeof payload === "object" ? payload : {};
+  const rows = Object.entries(data).filter(([key]) => !skipKeys.has(key));
+  renderStructuredInfoGrid(container, rows, options);
+}
+
 function hideContextMenu() {
   if (window.__pageMenuCtxMenu) {
     window.__pageMenuCtxMenu.remove();
@@ -223,6 +233,115 @@ function renderAutoInfoGrid(container, meta, options = {}) {
   });
 
   container.innerHTML = parts.join("") || `<div class="${keyClass}">—</div><div class="${valueClass}">—</div>`;
+}
+
+function createMemoPanel(options) {
+  const input = options.input;
+  const saveBtn = options.saveBtn;
+  const revertBtn = options.revertBtn;
+  const statusEl = options.statusEl;
+  const apiJson = options.apiJson;
+
+  let currentTarget = null;
+  let original = "";
+  let updatedAt = null;
+  let saving = false;
+
+  function setStatus(text, kind = "") {
+    if (!statusEl) return;
+    statusEl.textContent = text || "";
+    statusEl.className = "memo-status";
+    if (kind) statusEl.classList.add(kind);
+  }
+
+  function updateButtons() {
+    if (!input) return;
+    const hasTarget = Boolean(currentTarget?.kind && currentTarget?.id);
+    const dirty = hasTarget && input.value !== original;
+    input.disabled = !hasTarget;
+    if (saveBtn) saveBtn.disabled = !hasTarget || !dirty || saving;
+    if (revertBtn) revertBtn.disabled = !hasTarget || !dirty || saving;
+    if (!hasTarget) {
+      setStatus("");
+    } else if (dirty) {
+      setStatus("unsaved changes", "dirty");
+    } else if (updatedAt) {
+      setStatus(`saved · ${updatedAt}`, "saved");
+    } else {
+      setStatus("no memo yet");
+    }
+  }
+
+  function reset() {
+    currentTarget = null;
+    original = "";
+    updatedAt = null;
+    if (input) input.value = "";
+    updateButtons();
+  }
+
+  async function load(target) {
+    if (!input || !target?.kind || !target?.id) {
+      reset();
+      return;
+    }
+    currentTarget = {kind: String(target.kind), id: String(target.id)};
+    try {
+      const payload = await apiJson(`/api/memo?kind=${encodeURIComponent(currentTarget.kind)}&id=${encodeURIComponent(currentTarget.id)}`);
+      original = payload.memo || "";
+      updatedAt = payload.updated_at || null;
+      input.value = original;
+      updateButtons();
+    } catch {
+      original = "";
+      updatedAt = null;
+      input.value = "";
+      updateButtons();
+      setStatus("memo load failed", "error");
+    }
+  }
+
+  async function save() {
+    if (!input || !currentTarget?.kind || !currentTarget?.id || saving) return;
+    saving = true;
+    updateButtons();
+    setStatus("saving…", "info");
+    try {
+      const payload = await apiJson("/api/memo", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({kind: currentTarget.kind, id: currentTarget.id, memo: input.value}),
+      });
+      original = payload.memo || "";
+      updatedAt = payload.updated_at || null;
+      input.value = original;
+    } catch (err) {
+      setStatus(err.message || "save failed", "error");
+    } finally {
+      saving = false;
+      updateButtons();
+    }
+  }
+
+  function revert() {
+    if (!input) return;
+    input.value = original;
+    updateButtons();
+  }
+
+  if (input) input.addEventListener("input", updateButtons);
+  if (input) input.addEventListener("keydown", event => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "s") {
+      event.preventDefault();
+      save();
+    }
+  });
+  if (saveBtn) saveBtn.addEventListener("click", save);
+  if (revertBtn) revertBtn.addEventListener("click", revert);
+
+  updateButtons();
+
+  return {load, save, reset, revert};
 }
 
 initPageMenu();

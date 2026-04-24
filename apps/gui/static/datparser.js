@@ -9,7 +9,7 @@
     const browserAdvancedBtn = document.getElementById("browserAdvancedBtn");
     const browserAdvancedFilters = document.getElementById("browserAdvancedFilters");
     const sampleFilterSelect = document.getElementById("sampleFilterSelect");
-    const sessionFilterSelect = document.getElementById("sessionFilterSelect");
+    const expFilterSelect = document.getElementById("expFilterSelect");
     const rawMemoInput = document.getElementById("rawMemoInput");
     const rawMemoSaveBtn = document.getElementById("rawMemoSaveBtn");
     const rawMemoRevertBtn = document.getElementById("rawMemoRevertBtn");
@@ -405,7 +405,7 @@
       const measurement = measurementFilterSelect.value;
       const dependance = timeFilterSelect.value;
       const sample = sampleFilterSelect?.value || "";
-      const exp = sessionFilterSelect?.value || "";
+      const exp = expFilterSelect?.value || "";
       const query = (browserSearch.value || "").trim().toLowerCase();
       return workspaceFiles.filter(item => {
         const parts = pathParts(item.path, item.kind, item);
@@ -445,7 +445,7 @@
       setSelectOptions(measurementFilterSelect, [["", "all kinds"], ...measurements.map(value => [value, value])]);
       setSelectOptions(timeFilterSelect, [["", "all conditions"], ...dependances.map(value => [value, value])]);
       if (sampleFilterSelect) setSelectOptions(sampleFilterSelect, [["", "all samples"], ...samples.map(id => [id, samplesIndex[id] ? `${samplesIndex[id]} (${id})` : id])]);
-      if (sessionFilterSelect) setSelectOptions(sessionFilterSelect, [["", "all exps"], ...exps.map(id => [id, expsIndex[id] ? `${expsIndex[id]} (${id})` : id])]);
+      if (expFilterSelect) setSelectOptions(expFilterSelect, [["", "all exps"], ...exps.map(id => [id, expsIndex[id] ? `${expsIndex[id]} (${id})` : id])]);
     }
 
     function updateBrowserFiles(options = {}) {
@@ -748,7 +748,7 @@
       rawInfoGrid.innerHTML = "";
       try {
         const meta = await fetchRepoJson(workspaceMetadataPath(path, "rawdata"));
-        renderAutoInfoGrid(rawInfoGrid, meta, wsInfoOptions);
+        renderInfoAsJson(rawInfoGrid, meta, wsInfoOptions);
       } catch (_) {
         rawInfoGrid.innerHTML = '<div class="data-info-key muted">—</div><div></div>';
       }
@@ -821,7 +821,7 @@
       if (workspaceRelatedLinks) workspaceRelatedLinks.innerHTML = "";
       try {
         const meta = await fetchRepoJson(workspaceMetadataPath(path, "data"));
-        renderAutoInfoGrid(dataInfoGrid, meta, wsInfoOptions);
+        renderInfoAsJson(dataInfoGrid, meta, wsInfoOptions);
         renderWorkspaceRelatedLinks(meta);
       } catch (_) {
         dataInfoGrid.innerHTML = '<div class="data-info-key muted">—</div><div></div>';
@@ -1929,7 +1929,7 @@
       element?.addEventListener("change", () => updateBrowserFiles({selectFirstIfCurrentHidden: true}));
     }
     if (sampleFilterSelect) sampleFilterSelect.addEventListener("change", () => updateBrowserFiles({selectFirstIfCurrentHidden: true}));
-    if (sessionFilterSelect) sessionFilterSelect.addEventListener("change", () => updateBrowserFiles({selectFirstIfCurrentHidden: true}));
+    if (expFilterSelect) expFilterSelect.addEventListener("change", () => updateBrowserFiles({selectFirstIfCurrentHidden: true}));
     if (browserAdvancedBtn && browserAdvancedFilters) {
       browserAdvancedBtn.addEventListener("click", () => {
         const open = browserAdvancedFilters.classList.toggle("is-open");

@@ -25,9 +25,13 @@ const memoStatusEl = document.getElementById("memoStatus");
 
 let entries = [];
 let currentId = "";
-let memoOriginal = "";
-let memoSaving = false;
-let memoUpdatedAt = null;
+const memoPanel = createMemoPanel({
+  input: memoInput,
+  saveBtn: memoSaveBtn,
+  revertBtn: memoRevertBtn,
+  statusEl: memoStatusEl,
+  apiJson,
+});
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -123,85 +127,9 @@ function renderLinkBlock(blockId, container, items, options = {}) {
   renderLinkList(list, items);
 }
 
-function renderInfoGrid(container, rows) {
-  renderStructuredInfoGrid(container, rows, {
-    keyClass: "catalog-key",
-    valueClass: "catalog-value",
-  });
-}
-
-// ── Memo ──────────────────────────────────────────────────────────────────
 function memoKind() {
   return pageKind === "samples" ? "sample" : "experiment";
 }
-
-function updateMemoButtons() {
-  if (!memoInput) return;
-  const hasId = Boolean(currentId);
-  const dirty = hasId && memoInput.value !== memoOriginal;
-  memoInput.disabled = !hasId;
-  if (memoSaveBtn) memoSaveBtn.disabled = !hasId || !dirty || memoSaving;
-  if (memoRevertBtn) memoRevertBtn.disabled = !hasId || !dirty || memoSaving;
-  if (!memoStatusEl) return;
-  memoStatusEl.className = "memo-status";
-  if (!hasId) {
-    memoStatusEl.textContent = "";
-  } else if (dirty) {
-    memoStatusEl.textContent = "unsaved changes";
-    memoStatusEl.classList.add("dirty");
-  } else if (memoUpdatedAt) {
-    memoStatusEl.textContent = `saved · ${memoUpdatedAt}`;
-    memoStatusEl.classList.add("saved");
-  } else {
-    memoStatusEl.textContent = "no memo yet";
-  }
-}
-
-async function loadMemo(id) {
-  if (!memoInput || !id) { memoOriginal = ""; memoUpdatedAt = null; if (memoInput) { memoInput.value = ""; } updateMemoButtons(); return; }
-  try {
-    const payload = await apiJson(`/api/memo?kind=${memoKind()}&id=${encodeURIComponent(id)}`);
-    memoOriginal = payload.memo || "";
-    memoUpdatedAt = payload.updated_at || null;
-    memoInput.value = memoOriginal;
-    updateMemoButtons();
-  } catch {
-    memoOriginal = ""; memoUpdatedAt = null; memoInput.value = ""; updateMemoButtons();
-  }
-}
-
-async function saveMemo() {
-  if (!memoInput || !currentId || memoSaving) return;
-  memoSaving = true;
-  updateMemoButtons();
-  if (memoStatusEl) { memoStatusEl.textContent = "saving…"; memoStatusEl.className = "memo-status info"; }
-  try {
-    const payload = await apiJson("/api/memo", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({kind: memoKind(), id: currentId, memo: memoInput.value}),
-    });
-    memoOriginal = payload.memo || "";
-    memoUpdatedAt = payload.updated_at || null;
-    memoInput.value = memoOriginal;
-  } catch (err) {
-    if (memoStatusEl) { memoStatusEl.textContent = err.message || "save failed"; memoStatusEl.className = "memo-status error"; }
-  } finally {
-    memoSaving = false;
-    updateMemoButtons();
-  }
-}
-
-if (memoInput) {
-  memoInput.addEventListener("input", updateMemoButtons);
-  memoInput.addEventListener("keydown", e => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); saveMemo(); }
-  });
-}
-if (memoSaveBtn) memoSaveBtn.addEventListener("click", saveMemo);
-if (memoRevertBtn) memoRevertBtn.addEventListener("click", () => {
-  if (memoInput) { memoInput.value = memoOriginal; updateMemoButtons(); }
-});
 
 // ── Markdown rendering ─────────────────────────────────────────────────────
 // renderMarkdown and renderMathInScope are provided by markdown_render.js
@@ -247,9 +175,9 @@ async function selectRecord(id) {
     recordMeta.textContent = parts.join(" · ");
   }
 
-  renderAutoInfoGrid(recordInfo, meta, {keyClass: "catalog-key", valueClass: "catalog-value"});
+  renderInfoAsJson(recordInfo, payload.metadata || {}, {keyClass: "catalog-key", valueClass: "catalog-value"});
   await renderRepoJsonPanel(recordJson, payload.metadata_path);
-  await loadMemo(id);
+  await memoPanel.load({kind: memoKind(), id});
 
   renderLinkBlock("rawdataLinkBlock", recordRawdata, (payload.rawdata || []).map(item => ({
     href: `/?path=${encodeURIComponent(item.path)}`,
@@ -425,7 +353,6 @@ async function loadRecords() {
 }
 
 setSidePanel("info");
-updateMemoButtons();
 initPaneResize({
   root: document.querySelector(".catalog-main"),
   container: document.querySelector(".catalog-main"),

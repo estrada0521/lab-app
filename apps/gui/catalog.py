@@ -338,6 +338,8 @@ ANALYSIS_DIR = "analysis"
 ANALYSIS_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 ANALYSIS_SCRIPT_EXTS = {".py", ".ipynb", ".r", ".jl"}
 
+BUILD_DIR = "build"
+
 
 def _analysis_metadata_paths(root: Path) -> list[Path]:
     d = root / ANALYSIS_DIR
@@ -427,5 +429,99 @@ def analysis_detail(root: Path, project_id: str) -> dict[str, object]:
         "source_data": source_data,
         "images": images,
         "scripts": scripts,
+        "metadata": meta,
+    }
+
+
+def _build_metadata_paths(root: Path) -> list[Path]:
+    d = root / BUILD_DIR
+    if not d.is_dir():
+        return []
+    return sorted(d.glob(f"*/{datagen_core.FLAT_METADATA_NAME}"))
+
+
+def build_entries(root: Path) -> list[dict[str, object]]:
+    entries = []
+    for meta_path in _build_metadata_paths(root):
+        meta = datagen_core.load_optional_json(meta_path)
+        build_id = meta_path.parent.name
+        entries.append({
+            "id": build_id,
+            "display_name": _first_text(meta.get("display_name"), build_id),
+            "description": _text(meta.get("description")),
+            "created_at": _text(meta.get("created_at")),
+            "updated_at": _text(meta.get("updated_at")),
+            "source_count": len(meta.get("source_analysis") or []),
+        })
+    return entries
+
+
+def build_detail(root: Path, build_id: str) -> dict[str, object]:
+    record_dir = root / BUILD_DIR / build_id
+    if not record_dir.is_dir():
+        return {"error": f"build/{build_id} not found"}
+    metadata_path = record_dir / datagen_core.FLAT_METADATA_NAME
+    meta = datagen_core.load_optional_json(metadata_path)
+
+    images: list[str] = []
+    attachments: list[str] = []
+    for f in sorted(record_dir.iterdir()):
+        if f.name.startswith(".") or f.name == datagen_core.FLAT_METADATA_NAME:
+            continue
+        if f.is_file():
+            ext = f.suffix.lower()
+            rel = datagen_core.relative_text(f, root)
+            if ext in ANALYSIS_IMAGE_EXTS:
+                images.append(rel)
+            else:
+                attachments.append(rel)
+
+    output_files_raw = meta.get("output_files") or []
+    output_files: list[dict[str, object]] = []
+    for rel in output_files_raw:
+        rel_text = _text(rel)
+        if not rel_text:
+            continue
+        abs_path = record_dir / rel_text
+        output_files.append({
+            "path": datagen_core.relative_text(abs_path, root),
+            "name": abs_path.name,
+            "suffix": abs_path.suffix.lower(),
+            "exists": abs_path.is_file(),
+        })
+
+    source_analysis_raw = meta.get("source_analysis") or []
+    source_analysis: list[dict[str, object]] = []
+    analysis_entries_by_id = {str(item.get("id")): item for item in analysis_entries(root)}
+    for raw_ref in source_analysis_raw:
+        ref_text = _text(raw_ref)
+        if not ref_text:
+            continue
+        analysis_id = ref_text
+        analysis_dir = root / ANALYSIS_DIR / analysis_id
+        source_analysis.append({
+            "ref": ref_text,
+            "analysis_id": analysis_id,
+            "display_name": _first_text(
+                analysis_entries_by_id.get(analysis_id, {}).get("display_name"),
+                analysis_id,
+            ),
+            "exists": analysis_dir.is_dir(),
+        })
+
+    return {
+        "id": build_id,
+        "display_name": _first_text(meta.get("display_name"), build_id),
+        "description": _text(meta.get("description")),
+        "created_at": _text(meta.get("created_at")),
+        "updated_at": _text(meta.get("updated_at")),
+        "memo": _text(meta.get("memo")),
+        "memo_updated_at": _text(meta.get("memo_updated_at")),
+        "dir_path": datagen_core.relative_text(record_dir, root),
+        "metadata_path": datagen_core.relative_text(metadata_path, root),
+        "source_analysis": source_analysis,
+        "output_files": output_files,
+        "images": images,
+        "attachments": attachments,
         "metadata": meta,
     }

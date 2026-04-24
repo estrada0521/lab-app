@@ -6,7 +6,7 @@ import json
 import logging
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 _log = logging.getLogger(__name__)
 
@@ -17,6 +17,7 @@ FLAT_EXP_DIR = "exp"
 FLAT_DB_DIR = "DB"
 FLAT_DB_MATERIALS_DIR = "materials"
 FLAT_METADATA_NAME = "metadata.json"
+DAT_DATA_MARKER = "[Data]"
 RAWDATA_SAMPLE_OVERRIDE_KEYS = {
     "mass_mg",
     "form",
@@ -493,16 +494,80 @@ def build_source_context(root: Path, source_path: Path, source_name: str | None 
     return _build_flat_source_context(root, source_path, source_name=source_name)
 
 
+def _read_text_lines(path: Path) -> list[str]:
+    encodings = ["utf-8-sig", "utf-8", "cp932", "shift_jis", "latin-1"]
+    last_error: UnicodeDecodeError | None = None
+    for encoding in encodings:
+        try:
+            return path.read_text(encoding=encoding).splitlines()
+        except UnicodeDecodeError as exc:
+            last_error = exc
+    raise ValueError(f"could not decode {path}: {last_error}")
+
+
+def _make_unique_headers(raw_header: list[str]) -> list[str]:
+    headers: list[str] = []
+    counts: dict[str, int] = {}
+    for index, value in enumerate(raw_header, start=1):
+        name = value.strip() or f"column_{index}"
+        counts[name] = counts.get(name, 0) + 1
+        if counts[name] > 1:
+            name = f"{name}_{counts[name]}"
+        headers.append(name)
+    return headers
+
+
+def _normalize_tabular_rows(header: list[str], raw_rows: list[list[str]]) -> list[dict[str, str]]:
+    width = len(header)
+    rows: list[dict[str, str]] = []
+    for raw_row in raw_rows:
+        row = list(raw_row[:width]) + [""] * max(0, width - len(raw_row))
+        rows.append({header[index]: (row[index] or "").strip() for index in range(width)})
+    return rows
+
+
+def _read_delimited_table(table_lines: list[str], path: Path) -> tuple[list[str], list[dict[str, str]]]:
+    reader = csv.reader(table_lines)
+    try:
+        raw_header = next(reader)
+    except StopIteration as exc:
+        raise ValueError(f"no table header found: {path}") from exc
+    header = _make_unique_headers([value.strip() for value in raw_header])
+    if not header:
+        raise ValueError(f"source has no header: {path}")
+    raw_rows = [list(row) for row in reader if row]
+    return header, _normalize_tabular_rows(header, raw_rows)
+
+
+def _read_csv_source(path: Path) -> tuple[list[str], list[dict[str, str]]]:
+    return _read_delimited_table(_read_text_lines(path), path)
+
+
+def _read_dat_source(path: Path) -> tuple[list[str], list[dict[str, str]]]:
+    lines = _read_text_lines(path)
+    marker_index = next((index for index, line in enumerate(lines) if line.strip() == DAT_DATA_MARKER), None)
+    if marker_index is None:
+        raise ValueError(f"[Data] section not found: {path}")
+    return _read_delimited_table(lines[marker_index + 1 :], path)
+
+
+SOURCE_READERS: dict[str, Callable[[Path], tuple[list[str], list[dict[str, str]]]]] = {
+    ".csv": _read_csv_source,
+    ".dat": _read_dat_source,
+}
+SOURCE_FILE_SUFFIXES = frozenset(SOURCE_READERS)
+
+
+def read_source_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
+    suffix = path.suffix.lower()
+    reader = SOURCE_READERS.get(suffix)
+    if reader is None:
+        raise ValueError(f"unsupported source file type: {path.suffix}")
+    return reader(path)
+
+
 def read_csv_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
-    with path.open(newline="", encoding="utf-8-sig") as handle:
-        reader = csv.DictReader(handle)
-        if not reader.fieldnames:
-            raise ValueError(f"CSV has no header: {path}")
-        header = [name.strip() for name in reader.fieldnames]
-        rows: list[dict[str, str]] = []
-        for row in reader:
-            rows.append({(key or "").strip(): (value or "").strip() for key, value in row.items()})
-    return header, rows
+    return read_source_rows(path)
 
 
 def discover_data_files(root: Path) -> list[Path]:

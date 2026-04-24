@@ -284,11 +284,11 @@ def assess_calculators(
 
 def available_calculators(context: FilterContext, *, calculator_options: dict[str, Any] | None = None) -> list[CalculatorEntry]:
     try:
-        from .core import read_csv_rows
+        from .core import read_source_rows
 
-        header, rows = read_csv_rows(context.source_path)
-    except (OSError, UnicodeDecodeError, csv.Error) as exc:
-        _log.debug("Cannot read CSV for %s: %s", context.source_path, exc)
+        header, rows = read_source_rows(context.source_path)
+    except (OSError, UnicodeDecodeError, csv.Error, ValueError) as exc:
+        _log.debug("Cannot read source table for %s: %s", context.source_path, exc)
         return []
     matches: list[CalculatorEntry] = []
     for entry, assessment in assess_calculators(
@@ -331,10 +331,10 @@ def create_data_for_context(
     source_header: list[str] | None = None,
     source_rows: list[dict[str, str]] | None = None,
 ):
-    from .core import read_csv_rows
+    from .core import read_source_rows
 
     if source_header is None or source_rows is None:
-        header, rows = read_csv_rows(context.source_path)
+        header, rows = read_source_rows(context.source_path)
     else:
         header, rows = source_header, source_rows
     assessments = assess_calculators(context, header, rows, source_name=context.filter_id, calculator_options=calculator_options)

@@ -21,6 +21,7 @@
               <a class="page-menu-link" href="/calculators/">Calculators</a>
               <a class="page-menu-link" href="/experiments/">Experiments</a>
               <a class="page-menu-link" href="/analysis/">Analysis</a>
+              <a class="page-menu-link" href="/build/">Build</a>
             </div>
           </div>
           <div class="browser-target-toggle" role="group" aria-label="Browse target">
@@ -42,8 +43,8 @@
           <div class="browser-filter-grid">
             <label for="sampleFilterSelect">sample</label>
             <select id="sampleFilterSelect"></select>
-            <label for="sessionFilterSelect">exp</label>
-            <select id="sessionFilterSelect"></select>
+            <label for="expFilterSelect">exp</label>
+            <select id="expFilterSelect"></select>
           </div>
         </div>
         <div class="browser-list" id="browserTree" tabindex="0"></div>
@@ -204,15 +205,12 @@
           <div class="data-info-grid rawdata-only" id="rawInfoGrid"></div>
           <div class="data-info-grid data-only" id="dataInfoGrid"></div>
           <div class="memo-panel">
-            <div class="rawmeta-header">
-              <label for="rawMemoInput">memo</label>
-              <span class="rawmeta-status" id="rawMemoStatus"></span>
+            <div class="memo-actions">
+              <button class="memo-btn" id="rawMemoSaveBtn" disabled>Save</button>
+              <button class="memo-btn memo-btn-secondary" id="rawMemoRevertBtn" disabled>Revert</button>
+              <span class="memo-status" id="rawMemoStatus"></span>
             </div>
-            <textarea id="rawMemoInput" rows="5" placeholder="free-form notes about the source rawdata file" disabled></textarea>
-            <div class="rawmeta-actions">
-              <button class="small-btn" id="rawMemoRevertBtn" disabled>Revert</button>
-              <button class="small-btn primary" id="rawMemoSaveBtn" disabled>Save memo</button>
-            </div>
+            <textarea class="memo-input" id="rawMemoInput" rows="5" placeholder="Quick notes…" disabled></textarea>
           </div>
         </section>
 

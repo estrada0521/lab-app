@@ -1,16 +1,16 @@
 "use strict";
 
-const analysisList = document.getElementById("analysisList");
-const analysisTitle = document.getElementById("analysisTitle");
-const analysisMeta = document.getElementById("analysisMeta");
-const analysisBody = document.getElementById("analysisBody");
-const analysisInfo = document.getElementById("analysisInfo");
-const analysisJson = document.getElementById("analysisJson");
-const analysisLinks = document.getElementById("analysisLinks");
-const analysisSideInfo = document.getElementById("analysisSideInfo");
-const analysisSideJson = document.getElementById("analysisSideJson");
-const analysisSideLinks = document.getElementById("analysisSideLinks");
-const analysisSidePanelSelect = document.getElementById("analysisSidePanelSelect");
+const buildList = document.getElementById("buildList");
+const buildTitle = document.getElementById("buildTitle");
+const buildMeta = document.getElementById("buildMeta");
+const buildBody = document.getElementById("buildBody");
+const buildInfo = document.getElementById("buildInfo");
+const buildJson = document.getElementById("buildJson");
+const buildLinks = document.getElementById("buildLinks");
+const buildSideInfo = document.getElementById("buildSideInfo");
+const buildSideJson = document.getElementById("buildSideJson");
+const buildSideLinks = document.getElementById("buildSideLinks");
+const buildSidePanelSelect = document.getElementById("buildSidePanelSelect");
 const memoInput = document.getElementById("memoInput");
 const memoSaveBtn = document.getElementById("memoSaveBtn");
 const memoRevertBtn = document.getElementById("memoRevertBtn");
@@ -44,16 +44,16 @@ async function apiJson(url, init) {
   return payload;
 }
 
-async function deleteAnalysis(id) {
+async function deleteBuild(id) {
   return apiJson("/api/delete-entity", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({kind: "analysis", id}),
+    body: JSON.stringify({kind: "build", id}),
   });
 }
 
 function renderList(items) {
-  analysisList.innerHTML = "";
+  buildList.innerHTML = "";
   for (const entry of items) {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -72,7 +72,7 @@ function renderList(items) {
           return;
         }
       }
-      selectProject(entry.id).catch(err => setStatus(err.message, true));
+      selectBuild(entry.id).catch(err => setStatus(err.message, true));
     });
     btn.addEventListener("contextmenu", event => {
       event.preventDefault();
@@ -80,18 +80,18 @@ function renderList(items) {
         label: "Delete",
         danger: true,
         action: async () => {
-          if (!confirm(`Delete analysis "${entry.id}"?\nThis cannot be undone.`)) return;
+          if (!confirm(`Delete build "${entry.id}"?\nThis cannot be undone.`)) return;
           try {
-            await deleteAnalysis(entry.id);
+            await deleteBuild(entry.id);
             if (currentId === entry.id) currentId = "";
-            await loadAnalyses();
+            await loadBuilds();
           } catch (err) {
             setStatus(err.message || "Delete failed", true);
           }
         },
       }]);
     });
-    analysisList.appendChild(btn);
+    buildList.appendChild(btn);
   }
 }
 
@@ -115,14 +115,14 @@ function startRename(btn, oldId, nameEl) {
       await apiJson("/api/rename", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({kind: "analysis", old_id: oldId, new_name: newName}),
+        body: JSON.stringify({kind: "build", old_id: oldId, new_name: newName}),
       });
       const idx = entries.findIndex(e => e.id === oldId);
       if (idx >= 0) entries[idx] = {...entries[idx], display_name: newName};
       currentId = oldId;
       renderList(entries);
       restoreCurrent();
-      await selectProject(oldId);
+      await selectBuild(oldId);
     } catch (err) {
       setStatus(err.message, true);
       renderList(entries);
@@ -140,23 +140,23 @@ function startRename(btn, oldId, nameEl) {
 }
 
 function restoreCurrent() {
-  for (const btn of analysisList.querySelectorAll(".catalog-list-item")) {
+  for (const btn of buildList.querySelectorAll(".catalog-list-item")) {
     btn.classList.toggle("current", btn.dataset.id === currentId);
   }
 }
 
 function setSidePanel(panelName) {
-  if (analysisSideInfo) analysisSideInfo.hidden = panelName !== "info";
-  if (analysisSideJson) analysisSideJson.hidden = panelName !== "json";
-  if (analysisSideLinks) analysisSideLinks.hidden = panelName !== "links";
-  if (analysisSidePanelSelect) analysisSidePanelSelect.value = panelName;
+  if (buildSideInfo) buildSideInfo.hidden = panelName !== "info";
+  if (buildSideJson) buildSideJson.hidden = panelName !== "json";
+  if (buildSideLinks) buildSideLinks.hidden = panelName !== "links";
+  if (buildSidePanelSelect) buildSidePanelSelect.value = panelName;
 }
 
-async function selectProject(id) {
+async function selectBuild(id) {
   currentId = id;
   restoreCurrent();
   setStatus("Loading…");
-  const detail = await apiJson(`/api/analysis?id=${encodeURIComponent(id)}`);
+  const detail = await apiJson(`/api/build?id=${encodeURIComponent(id)}`);
   renderDetail(detail);
   setStatus("");
 }
@@ -181,19 +181,44 @@ function wsLinkBlock(label, items) {
 }
 
 function renderDetail(detail) {
-  analysisTitle.textContent = detail.display_name || detail.id;
-  analysisMeta.textContent = [detail.created_at && `Created ${detail.created_at}`, detail.updated_at && `Updated ${detail.updated_at}`].filter(Boolean).join(" · ");
+  buildTitle.textContent = detail.display_name || detail.id;
+  buildMeta.textContent = [
+    detail.created_at && `Created ${detail.created_at}`,
+    detail.updated_at && `Updated ${detail.updated_at}`,
+  ].filter(Boolean).join(" · ");
 
-  renderInfoAsJson(analysisInfo, detail.metadata || {}, {keyClass: "catalog-key", valueClass: "catalog-value"});
-  renderRepoJsonPanel(analysisJson, detail.metadata_path);
+  renderInfoAsJson(buildInfo, detail.metadata || {}, {keyClass: "catalog-key", valueClass: "catalog-value"});
+  renderRepoJsonPanel(buildJson, detail.metadata_path);
 
-  // Center body: description + images only
   let html = "";
   if (detail.description) {
     html += `<div class="analysis-description">${escapeHtml(detail.description)}</div>`;
   }
+  if (detail.output_files && detail.output_files.length) {
+    for (const f of detail.output_files) {
+      if (!f.exists) {
+        html += `<div class="build-output-missing">${escapeHtml(f.name)} (not found)</div>`;
+        continue;
+      }
+      const fileUrl = `/api/repo-file?path=${encodeURIComponent(f.path)}`;
+      if (f.suffix === ".pdf") {
+        html += `<div class="build-pdf-wrap">` +
+          `<div class="build-pdf-toolbar">` +
+          `<span class="build-pdf-name">${escapeHtml(f.name)}</span>` +
+          `<a class="build-pdf-open" href="${escapeHtml(fileUrl)}" target="_blank">Open ↗</a>` +
+          `</div>` +
+          `<iframe class="build-pdf-frame" src="${escapeHtml(fileUrl)}" title="${escapeHtml(f.name)}"></iframe>` +
+          `</div>`;
+      } else {
+        html += `<div class="build-attachment-item">` +
+          `<a class="catalog-record-link" href="${escapeHtml(fileUrl)}" target="_blank">` +
+          `<span class="catalog-record-link-label">${escapeHtml(f.name)}</span>` +
+          `</a></div>`;
+      }
+    }
+  }
   if (detail.images && detail.images.length) {
-    html += `<div class="analysis-section-label">Outputs</div><div class="analysis-images">`;
+    html += `<div class="analysis-section-label">Images</div><div class="analysis-images">`;
     for (const imgPath of detail.images) {
       html += `<figure class="analysis-figure">
         <a href="/api/repo-file?path=${encodeURIComponent(imgPath)}" target="_blank">
@@ -204,43 +229,48 @@ function renderDetail(detail) {
     }
     html += `</div>`;
   }
-  analysisBody.innerHTML = html;
+  if (detail.attachments && detail.attachments.length) {
+    html += `<div class="analysis-section-label">Attachments</div><div class="analysis-attachments">`;
+    for (const attPath of detail.attachments) {
+      const name = attPath.split("/").pop();
+      html += `<div class="build-attachment-item">` +
+        `<a class="catalog-record-link" href="/api/repo-file?path=${encodeURIComponent(attPath)}" target="_blank">` +
+        `<span class="catalog-record-link-label">${escapeHtml(name)}</span>` +
+        `</a></div>`;
+    }
+    html += `</div>`;
+  }
+  const hasPdf = detail.output_files && detail.output_files.some(f => f.suffix === ".pdf" && f.exists);
+  buildBody.classList.toggle("has-pdf", Boolean(hasPdf));
+  buildBody.innerHTML = html;
 
-  // Links panel: DATA block + unique RAWDATA block
-  const rawdataSet = new Set();
   let missingCount = 0;
-  const dataLinks = (detail.source_data || []).map(src => {
-    if (src.raw_source) rawdataSet.add(src.raw_source);
-    const id = src.data_id || src.ref || src.path;
+  const analysisLinks = (detail.source_analysis || []).map(src => {
+    const id = src.analysis_id || src.ref;
     const label = src.display_name || id;
-    if (src.exists) return wsRecordLink(`/?path=${encodeURIComponent(src.path)}`, label, id, src.path);
+    if (src.exists) return wsRecordLink(`/analysis/?id=${encodeURIComponent(id)}`, label, id);
     missingCount += 1;
-    return `<span class="catalog-record-link missing">`
-      + `<span class="catalog-record-link-label">${escapeHtml(label)}</span>`
-      + `<span class="catalog-record-link-sub">${escapeHtml(id)}</span>`
-      + `</span>`;
-  });
-  const rawLinks = [...rawdataSet].map(raw => {
-    const id = raw.split("/")[1] || raw;
-    const found = (detail.source_data || []).find(src => src.raw_source === raw);
-    return wsRecordLink(`/?path=${encodeURIComponent(raw)}`, found?.raw_display_name || "", id, raw);
+    return `<span class="catalog-record-link missing">` +
+      `<span class="catalog-record-link-label">${escapeHtml(label)}</span>` +
+      `<span class="catalog-record-link-sub">${escapeHtml(id)}</span>` +
+      `</span>`;
   });
   const warningHtml = missingCount
-    ? `<div class="analysis-links-warning">${escapeHtml(`${missingCount} data source${missingCount === 1 ? "" : "s"} could not be found. This analysis may be stale.`)}</div>`
+    ? `<div class="analysis-links-warning">${escapeHtml(`${missingCount} analysis source${missingCount === 1 ? "" : "s"} could not be found. This build may be stale.`)}</div>`
     : "";
-  const linksHtml = warningHtml + wsLinkBlock("DATA", dataLinks) + wsLinkBlock("RAWDATA", rawLinks);
-  analysisLinks.innerHTML = linksHtml || '<div class="data-info-val muted">—</div>';
-  memoPanel.load({kind: "analysis", id: detail.id}).catch(err => setStatus(err.message, true));
+  const linksHtml = warningHtml + wsLinkBlock("ANALYSIS", analysisLinks);
+  buildLinks.innerHTML = linksHtml || '<div class="data-info-val muted">—</div>';
+  memoPanel.load({kind: "build", id: detail.id}).catch(err => setStatus(err.message, true));
 }
 
-async function loadAnalyses() {
+async function loadBuilds() {
   setStatus("Loading…");
-  const payload = await apiJson("/api/analyses");
+  const payload = await apiJson("/api/builds");
   entries = payload.entries || [];
   renderList(entries);
   const paramId = new URLSearchParams(location.search).get("id");
   const initialId = paramId && entries.some(e => e.id === paramId) ? paramId : (entries[0]?.id || null);
-  if (initialId) await selectProject(initialId);
+  if (initialId) await selectBuild(initialId);
   setStatus("");
 }
 
@@ -249,11 +279,11 @@ initPaneResize({
   container: document.querySelector(".catalog-main"),
   leftSplitterId: "catalogLeftSplitter",
   rightSplitterId: "catalogRightSplitter",
-  storagePrefix: "datparser-analysis",
+  storagePrefix: "datparser-build",
   left: {min: 220, max: 520, reserve: 460},
   right: {min: 260, max: 560, reserve: 440},
 });
 
-analysisSidePanelSelect?.addEventListener("change", () => setSidePanel(analysisSidePanelSelect.value));
+buildSidePanelSelect?.addEventListener("change", () => setSidePanel(buildSidePanelSelect.value));
 setSidePanel("info");
-loadAnalyses().catch(err => setStatus(err.message, true));
+loadBuilds().catch(err => setStatus(err.message, true));
