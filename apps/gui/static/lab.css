@@ -1022,13 +1022,45 @@
         grid-template-columns: minmax(220px, var(--left-pane-size)) 10px minmax(0, 1fr) 10px minmax(240px, var(--right-pane-size));
       }
     }
+    /* ≤1100px: 2-column (left + center), side pane spans full width at bottom */
     @media (max-width: 1100px) {
-      main { grid-template-columns: 1fr; }
+      main {
+        grid-template-columns: minmax(200px, var(--left-pane-size)) minmax(0, 1fr);
+      }
       .pane-splitter { display: none; }
       aside.browser-pane { max-height: 320px; }
-      section.side-section { max-height: 420px; }
-      .side-tabs {
-        align-self: flex-start;
+      section.side-section {
+        grid-column: 1 / -1;
+        max-height: 380px;
+        min-height: 180px;
+        overflow: auto;
+      }
+      .side-tabs { align-self: flex-start; }
+    }
+    /* ≤640px: flex column stack */
+    @media (max-width: 640px) {
+      main {
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        gap: 0;
+        padding: 6px 8px;
+      }
+      aside.browser-pane {
+        flex: 0 0 auto;
+        max-height: 220px;
+        min-height: 120px;
+        border-bottom: 1px solid var(--line);
+      }
+      section.plot-section {
+        flex: 1 1 auto;
+        min-height: 200px;
+      }
+      section.side-section {
+        flex: 0 0 auto;
+        max-height: 300px;
+        min-height: 160px;
+        border-top: 1px solid var(--line);
       }
     }
     @media (max-width: 720px) {
