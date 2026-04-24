@@ -1070,23 +1070,24 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--button-bg);
-      border: 1px solid var(--line-strong);
+      background: #ffffff;
+      border: 1px solid #ffffff;
       border-radius: 10px;
-      color: var(--text);
+      color: #000000;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
       transition: all 0.15s ease;
     }
     .memo-save-btn:hover:not(:disabled) {
-      background: var(--button-hover);
-      border-color: var(--accent);
-      color: var(--accent);
+      background: #e6e6e6;
+      border-color: #e6e6e6;
+      color: #000000;
       box-shadow: 0 3px 8px rgba(0,0,0,0.3);
     }
     .memo-save-btn:disabled {
       opacity: 0.4;
       background: var(--input-bg);
       border-color: var(--line);
+      color: var(--muted);
       box-shadow: none;
       cursor: default;
     }
