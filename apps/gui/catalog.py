@@ -9,7 +9,7 @@ from typing import Any
 
 from pipeline.datagen import core as datagen_core
 
-from . import core as datparser_core
+from . import core as lab_core
 
 _log = logging.getLogger(__name__)
 
@@ -99,9 +99,9 @@ def _rawdata_created(path: Path, raw_metadata: dict[str, Any], exp_id: str) -> s
 def _data_created(root: Path, path: Path) -> str:
     """Created date of a data file: use the source rawdata metadata/exp."""
     try:
-        raw = datparser_core.resolve_raw_source(root, path)
+        raw = lab_core.resolve_raw_source(root, path)
         if raw:
-            raw_meta = datparser_core.read_raw_meta(raw)
+            raw_meta = lab_core.read_raw_meta(raw)
             exp_id = _text(raw_meta.get("exp_id"))
             return _rawdata_created(raw, raw_meta, exp_id)
     except (OSError, json.JSONDecodeError, ValueError):
@@ -124,7 +124,7 @@ def raw_entry(root: Path, path: Path) -> dict[str, object]:
     except Exception as exc:
         _log.debug("build_source_context failed for %s: %s", path, exc)
     try:
-        metadata = datparser_core.read_raw_meta(path)
+        metadata = lab_core.read_raw_meta(path)
     except (OSError, json.JSONDecodeError):
         metadata = {}
     display_name = _first_text(metadata.get("display_name"), path.parent.name)
@@ -192,7 +192,7 @@ def data_entry(root: Path, path: Path) -> dict[str, object]:
 
 
 def _raw_entries(root: Path) -> list[dict[str, object]]:
-    return [raw_entry(root, path) for path in datparser_core.discover_raw_files(root)]
+    return [raw_entry(root, path) for path in lab_core.discover_raw_files(root)]
 
 
 def _data_entries(root: Path) -> list[dict[str, object]]:

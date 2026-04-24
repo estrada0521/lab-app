@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lab</title>
   <link rel="stylesheet" href="/static/theme.css?v=__STATIC_VERSION__">
-  <link rel="stylesheet" href="/static/datparser.css?v=__STATIC_VERSION__">
+  <link rel="stylesheet" href="/static/lab.css?v=__STATIC_VERSION__">
   <link rel="stylesheet" href="/static/datagen.css?v=__STATIC_VERSION__">
 </head>
-  <body class="workspace-page selected-rawdata" data-page="workspace" data-side-panel="info">
-  <main id="workspaceMain">
+  <body class="viewer-page selected-rawdata" data-page="viewer" data-side-panel="info">
+  <main id="viewerMain">
       <aside class="browser-pane" aria-label="Data browser">
         <div class="browser-topline">
           <div class="page-menu-wrap">
@@ -48,8 +48,8 @@
 
     <section class="plot-section">
       <div class="catalog-content-head">
-        <div class="catalog-content-title" id="workspaceTitle"></div>
-        <div class="catalog-content-meta" id="workspaceMeta"></div>
+        <div class="catalog-content-title" id="viewerTitle"></div>
+        <div class="catalog-content-meta" id="viewerMeta"></div>
       </div>
       <div class="axis-row">
         <div>
@@ -231,7 +231,7 @@
         </section>
 
         <section class="side-panel related-links-panel" data-panel="links">
-          <div class="related-links" id="workspaceRelatedLinks"></div>
+          <div class="related-links" id="viewerRelatedLinks"></div>
         </section>
       </div>
     </section>
@@ -249,6 +249,6 @@
   <script src="/static/info/common.js?v=__STATIC_VERSION__"></script>
   <script src="/static/info/rawdata.js?v=__STATIC_VERSION__"></script>
   <script src="/static/info/data.js?v=__STATIC_VERSION__"></script>
-  <script src="/static/datparser.js?v=__STATIC_VERSION__"></script>
+  <script src="/static/viewer.js?v=__STATIC_VERSION__"></script>
 </body>
 </html>

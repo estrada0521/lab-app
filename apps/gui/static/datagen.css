@@ -1,4 +1,4 @@
-body.data-workspace-page main {
+body.viewer-page main {
   display: grid;
   grid-template-columns: minmax(260px, 300px) minmax(0, 1fr) minmax(330px, 400px);
   gap: 10px;
@@ -654,7 +654,7 @@ body.calculators-page .app-link.active {
 }
 
 @media (max-width: 1180px) {
-  body.data-workspace-page main,
+  body.viewer-page main,
   body.calculators-page .calculators-main {
     grid-template-columns: 1fr;
   }
@@ -764,14 +764,14 @@ body.catalog-page section {
 }
 
 .catalog-page .catalog-content-head,
-.workspace-page .catalog-content-head {
+.viewer-page .catalog-content-head {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
 .catalog-page .catalog-content-title,
-.workspace-page .catalog-content-title {
+.viewer-page .catalog-content-title {
   font-size: 15px;
   font-weight: 700;
   color: var(--text);
@@ -1034,17 +1034,17 @@ body.catalog-page section {
 
 /* Workspace page: narrow window responsive */
 @media (max-width: 1100px) {
-  body.data-workspace-page main {
+  body.viewer-page main {
     grid-template-columns: 1fr;
   }
 
-  body.data-workspace-page .pane-splitter {
+  body.viewer-page .pane-splitter {
     display: none;
   }
 }
 
 @media (max-width: 640px) {
-  body.data-workspace-page main {
+  body.viewer-page main {
     grid-template-columns: 1fr;
     overflow-y: auto;
   }

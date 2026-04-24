@@ -49,7 +49,7 @@
       font-size: 14px;
       -webkit-font-smoothing: antialiased;
     }
-    body.workspace-page {
+    body.viewer-page {
       position: relative;
       --left-pane-size: 280px;
       --right-pane-size: 320px;
@@ -80,8 +80,8 @@
       border-radius: 14px;
       box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
     }
-    body.workspace-page section,
-    body.workspace-page aside.browser-pane {
+    body.viewer-page section,
+    body.viewer-page aside.browser-pane {
       background: transparent;
       border: none;
       border-radius: 0;
@@ -90,14 +90,14 @@
     section.plot-section {
       display: flex;
       flex-direction: column;
-      padding: 0;
+      padding: 0 0 10px;
       gap: 12px;
       min-height: 0;
     }
     section.side-section {
       display: flex;
       flex-direction: column;
-      padding: 0;
+      padding: 0 0 10px;
       gap: 0;
       min-height: 0;
       overflow: hidden;
@@ -644,7 +644,8 @@
       align-items: center;
       gap: 2px;
       padding: 3px;
-      margin-bottom: 10px;
+      margin-bottom: 14px;
+      align-self: center;
       background: var(--toolbar-bg);
       border: 1px solid var(--toolbar-border);
       border-radius: var(--radius);

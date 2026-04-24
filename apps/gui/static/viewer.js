@@ -1,6 +1,6 @@
 // Plain JavaScript for now; this file is separated so it can be replaced by a TypeScript build later.
     const browserTree = document.getElementById("browserTree");
-    const workspaceMain = document.getElementById("workspaceMain");
+    const viewerMain = document.getElementById("viewerMain");
 
     const browserTargetToggle = document.getElementById("browserTargetToggle");
     const measurementFilterSelect = document.getElementById("measurementFilterSelect");
@@ -40,9 +40,9 @@
     const dataInfoGrid = document.getElementById("dataInfoGrid");
     const rawJsonPanel = document.getElementById("rawJsonPanel");
     const dataJsonPanel = document.getElementById("dataJsonPanel");
-    const workspaceRelatedLinks = document.getElementById("workspaceRelatedLinks");
-    const workspaceTitle = document.getElementById("workspaceTitle");
-    const workspaceMeta = document.getElementById("workspaceMeta");
+    const viewerRelatedLinks = document.getElementById("viewerRelatedLinks");
+    const viewerTitle = document.getElementById("viewerTitle");
+    const viewerMeta = document.getElementById("viewerMeta");
     const generateDataBtn = document.getElementById("generateDataBtn");
     const previewFilterBtn = document.getElementById("previewFilterBtn");
     const plotLineModeBtn = document.getElementById("plotLineModeBtn");
@@ -69,7 +69,7 @@
     const viewHistory = [];
     let historyIndex = -1;
     let currentKind = "rawdata";
-    let workspaceFiles = [];
+    let viewerFiles = [];
     let samplesIndex = {};
     let sampleMaterialIndex = {};
     let expsIndex = {};
@@ -110,7 +110,7 @@
       if (_ctxMenu) { _ctxMenu.remove(); _ctxMenu = null; }
     }
     document.addEventListener("keydown", e => { if (e.key === "Escape") hideContextMenu(); });
-    let browserTarget = localStorage.getItem("datparser-browser-target") || "rawdata";
+    let browserTarget = localStorage.getItem("lab-browser-target") || "rawdata";
     let plotColorTouched = false;
     let plotTheme = "light";
     let plotGridVisible = true;
@@ -281,10 +281,10 @@
     }
 
     function setWorkspaceHeader(path) {
-      const item = workspaceFiles.find(entry => entry.path === path);
+      const item = viewerFiles.find(entry => entry.path === path);
       const fallback = path ? pathStem(path) : "";
-      if (workspaceTitle) workspaceTitle.textContent = item?.display_name || fallback;
-      if (workspaceMeta) workspaceMeta.textContent = "";
+      if (viewerTitle) viewerTitle.textContent = item?.display_name || fallback;
+      if (viewerMeta) viewerMeta.textContent = "";
     }
 
     function browserSort(a, b) {
@@ -297,7 +297,7 @@
 
     function setBrowserTarget(kind, options = {}) {
       browserTarget = kind === "data" ? "data" : "rawdata";
-      localStorage.setItem("datparser-browser-target", browserTarget);
+      localStorage.setItem("lab-browser-target", browserTarget);
       browserTargetToggle?.classList.toggle("is-data", browserTarget === "data");
       if (options.refresh !== false) {
         updateBrowserFiles({selectFirstIfCurrentHidden: options.selectFirstIfCurrentHidden !== false});
@@ -311,7 +311,7 @@
       if (!files.length) {
         const empty = document.createElement("div");
         empty.className = "tree-empty";
-        empty.textContent = workspaceFiles.length ? "No files match the current filters." : "No files discovered.";
+        empty.textContent = viewerFiles.length ? "No files match the current filters." : "No files discovered.";
         browserTree.appendChild(empty);
         return;
       }
@@ -411,7 +411,7 @@
       const measurement = measurementFilterSelect.value;
       const dependance = timeFilterSelect.value;
       const sample = sampleFilterSelect?.value || "";
-      return workspaceFiles.filter(item => {
+      return viewerFiles.filter(item => {
         const parts = pathParts(item.path, item.kind, item);
         return item.kind === browserTarget
           && (!measurement || parts.measurement === measurement)
@@ -436,13 +436,13 @@
     }
 
     function refreshBrowserFilters() {
-      const measurements = Array.from(new Set(workspaceFiles.map(item => pathParts(item.path, item.kind, item).measurement).filter(Boolean)))
+      const measurements = Array.from(new Set(viewerFiles.map(item => pathParts(item.path, item.kind, item).measurement).filter(Boolean)))
         .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
-      const dependances = Array.from(new Set(workspaceFiles.map(item => conditionToken(pathParts(item.path, item.kind, item))).filter(Boolean)))
+      const dependances = Array.from(new Set(viewerFiles.map(item => conditionToken(pathParts(item.path, item.kind, item))).filter(Boolean)))
         .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
-      const samples = Array.from(new Set(workspaceFiles.map(item => pathParts(item.path, item.kind, item).sample).filter(Boolean)))
+      const samples = Array.from(new Set(viewerFiles.map(item => pathParts(item.path, item.kind, item).sample).filter(Boolean)))
         .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
-      const exps = Array.from(new Set(workspaceFiles.map(item => pathParts(item.path, item.kind, item).exp).filter(Boolean)))
+      const exps = Array.from(new Set(viewerFiles.map(item => pathParts(item.path, item.kind, item).exp).filter(Boolean)))
         .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
       setSelectOptions(measurementFilterSelect, [["", "all kinds"], ...measurements.map(value => [value, value])]);
       setSelectOptions(timeFilterSelect, [["", "all conditions"], ...dependances.map(value => [value, value])]);
@@ -472,26 +472,26 @@
       expsStartIndex = rawPayload.exps_start_index || dataPayload.exps_start_index || {};
       const rawEntries = rawPayload.entries || rawFiles.map(path => ({path, file: path.split("/").pop() || ""}));
       const dataEntries = dataPayload.entries || generatedDataFiles.map(path => ({path, file: path.split("/").pop() || ""}));
-      workspaceFiles = [
+      viewerFiles = [
         ...rawEntries.map(item => ({kind: "rawdata", ...item})),
         ...dataEntries.map(item => ({kind: "data", ...item})),
       ];
-      const previousTargetedFiles = workspaceFiles.filter(item => item.kind === browserTarget);
-      const preferred = workspaceFiles.find(item => item.path === preferredPath)
-        || workspaceFiles.find(item => item.path === currentPath)
-        || workspaceFiles.find(item => item.kind === browserTarget)
+      const previousTargetedFiles = viewerFiles.filter(item => item.kind === browserTarget);
+      const preferred = viewerFiles.find(item => item.path === preferredPath)
+        || viewerFiles.find(item => item.path === currentPath)
+        || viewerFiles.find(item => item.kind === browserTarget)
         || previousTargetedFiles[0]
-        || workspaceFiles[0];
+        || viewerFiles[0];
       if (preferred) {
         setBrowserTarget(preferred.kind, {refresh: false});
       }
       refreshBrowserFilters();
       updateBrowserFiles();
-      const targetedFiles = workspaceFiles.filter(item => item.kind === browserTarget);
-      const resolvedPreferred = workspaceFiles.find(item => item.path === preferredPath)
-        || workspaceFiles.find(item => item.path === currentPath)
+      const targetedFiles = viewerFiles.filter(item => item.kind === browserTarget);
+      const resolvedPreferred = viewerFiles.find(item => item.path === preferredPath)
+        || viewerFiles.find(item => item.path === currentPath)
         || targetedFiles[0]
-        || workspaceFiles[0];
+        || viewerFiles[0];
       if (resolvedPreferred) {
         await loadTable(resolvedPreferred.path, {kind: resolvedPreferred.kind});
       } else {
@@ -554,7 +554,7 @@
     }
 
     function currentWorkspaceItem() {
-      return workspaceFiles.find(item => item.path === currentPath && item.kind === currentKind) || null;
+      return viewerFiles.find(item => item.path === currentPath && item.kind === currentKind) || null;
     }
 
     function renderParameters(parameters) {
@@ -740,7 +740,7 @@
 
     const wsInfoOptions = {keyClass: "data-info-key", valueClass: "data-info-val"};
 
-    function workspaceMetadataPath(path, kind = currentKind) {
+    function viewerMetadataPath(path, kind = currentKind) {
       const parts = (path || "").split("/");
       const recordId = parts[1] || "";
       if (!recordId) return "";
@@ -751,7 +751,7 @@
       if (!rawInfoGrid) return;
       rawInfoGrid.innerHTML = "";
       try {
-        const meta = await fetchRepoJson(workspaceMetadataPath(path, "rawdata"));
+        const meta = await fetchRepoJson(viewerMetadataPath(path, "rawdata"));
         const rows = typeof buildRawdataInfoRows === "function"
           ? buildRawdataInfoRows(meta, {samplesIndex, sampleMaterialIndex, expsStartIndex, rawPath: path})
           : Object.entries(meta || {});
@@ -763,7 +763,7 @@
 
     async function renderRawJsonPanel(path) {
       if (!rawJsonPanel) return;
-      await renderRepoJsonPanel(rawJsonPanel, workspaceMetadataPath(path, "rawdata"));
+      await renderRepoJsonPanel(rawJsonPanel, viewerMetadataPath(path, "rawdata"));
     }
 
     function wsLinkItem(href, text, sub = "") {
@@ -784,11 +784,11 @@
     }
 
     function renderWorkspaceRelatedLinks(meta = null) {
-      if (!workspaceRelatedLinks) return;
+      if (!viewerRelatedLinks) return;
       if (currentKind === "rawdata") {
         const item = currentWorkspaceItem();
         const parts = pathParts(currentPath, "rawdata", item);
-        const dataItems = workspaceFiles
+        const dataItems = viewerFiles
           .filter(entry => entry.kind === "data" && entry.raw_source === currentPath)
           .map(entry => ({
             href: `/?path=${encodeURIComponent(entry.path)}`,
@@ -800,11 +800,11 @@
           parts.exp && wsLinkBlock("EXP", [{href: `/experiments/?id=${encodeURIComponent(parts.exp)}`, text: expsIndex[parts.exp] || parts.exp, sub: parts.exp}]),
           wsLinkBlock("DATA", dataItems),
         ].filter(Boolean).join("");
-        workspaceRelatedLinks.innerHTML = html || '<div class="data-info-val">—</div>';
+        viewerRelatedLinks.innerHTML = html || '<div class="data-info-val">—</div>';
         return;
       }
       // data panel: derive rawdata path from raw_source in workspace list
-      const dataEntry = workspaceFiles.find(e => e.path === currentPath);
+      const dataEntry = viewerFiles.find(e => e.path === currentPath);
       const rawSourcePath = dataEntry?.raw_source || "";
       const rawdataId = meta?.rawdata_id || "";
       const sampleId = meta?.sample_id || "";
@@ -814,23 +814,23 @@
         expId && wsLinkBlock("EXP", [{href: `/experiments/?id=${encodeURIComponent(expId)}`, text: expsIndex[expId] || expId, sub: expId}]),
         rawSourcePath && wsLinkBlock("RAWDATA", [{
           href: `/?path=${encodeURIComponent(rawSourcePath)}`,
-          text: workspaceFiles.find(e => e.path === rawSourcePath)?.display_name || rawSourcePath.split("/").pop(),
+          text: viewerFiles.find(e => e.path === rawSourcePath)?.display_name || rawSourcePath.split("/").pop(),
           sub: rawSourcePath.split("/").slice(0, 2).join("/"),
         }]),
         !rawSourcePath && rawdataId && wsLinkBlock("RAWDATA", [{href: `/?path=${encodeURIComponent("rawdata/" + rawdataId)}`, text: rawdataId}]),
       ].filter(Boolean).join("");
-      workspaceRelatedLinks.innerHTML = html || '<div class="data-info-val">—</div>';
+      viewerRelatedLinks.innerHTML = html || '<div class="data-info-val">—</div>';
     }
 
     async function renderGeneratedDataPanel(path) {
       if (!dataInfoGrid) return;
       dataInfoGrid.innerHTML = "";
-      if (workspaceRelatedLinks) workspaceRelatedLinks.innerHTML = "";
+      if (viewerRelatedLinks) viewerRelatedLinks.innerHTML = "";
       try {
-        const meta = await fetchRepoJson(workspaceMetadataPath(path, "data"));
+        const meta = await fetchRepoJson(viewerMetadataPath(path, "data"));
         const rawSourcePath = String(currentWorkspaceItem()?.raw_source || "").trim();
         const rawdataId = String(meta?.rawdata_id || "").trim();
-        const rawEntry = workspaceFiles.find(entry =>
+        const rawEntry = viewerFiles.find(entry =>
           entry.kind === "rawdata" && (
             (rawSourcePath && entry.path === rawSourcePath) ||
             (rawdataId && entry.id === rawdataId)
@@ -849,13 +849,13 @@
         renderWorkspaceRelatedLinks(meta);
       } catch (_) {
         dataInfoGrid.innerHTML = '<div class="data-info-key muted">—</div><div></div>';
-        if (workspaceRelatedLinks) workspaceRelatedLinks.innerHTML = "";
+        if (viewerRelatedLinks) viewerRelatedLinks.innerHTML = "";
       }
     }
 
     async function renderDataJsonPanel(path) {
       if (!dataJsonPanel) return;
-      await renderRepoJsonPanel(dataJsonPanel, workspaceMetadataPath(path, "data"));
+      await renderRepoJsonPanel(dataJsonPanel, viewerMetadataPath(path, "data"));
     }
 
     async function loadTable(path, options = {}) {
@@ -1522,7 +1522,7 @@
           syncPlotColors();
         }
       }
-      localStorage.setItem("datparser-plot-theme", plotTheme);
+      localStorage.setItem("lab-plot-theme", plotTheme);
       render();
     }
 
@@ -2119,13 +2119,13 @@
     setBrowserTarget(browserTarget, {refresh: false, selectFirstIfCurrentHidden: false});
     updateDualPlotControls();
     initPaneResize({
-      root: workspaceMain,
-      container: workspaceMain,
-      storagePrefix: "datparser",
+      root: viewerMain,
+      container: viewerMain,
+      storagePrefix: "lab",
       left: {min: 220, max: 560, reserve: 420},
       right: {min: 260, max: 620, reserve: 420},
     });
     syncPlotColors();
     setPlotStyle(plotAppearance.style);
-    applyPlotTheme(localStorage.getItem("datparser-plot-theme") || localStorage.getItem("datparser-plot-bg") || "light");
+    applyPlotTheme(localStorage.getItem("lab-plot-theme") || localStorage.getItem("lab-plot-bg") || "light");
     loadWorkspaceFiles(new URLSearchParams(window.location.search).get("path") || "").catch(err => setStatus(err.message, true));

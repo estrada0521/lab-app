@@ -271,7 +271,7 @@ initPaneResize({
   container: document.querySelector(".catalog-main"),
   leftSplitterId: "catalogLeftSplitter",
   rightSplitterId: "catalogRightSplitter",
-  storagePrefix: "datparser-build",
+  storagePrefix: "lab-build",
   left: {min: 220, max: 520, reserve: 460},
   right: {min: 260, max: 560, reserve: 440},
 });
