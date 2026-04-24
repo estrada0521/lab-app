@@ -21,8 +21,8 @@
       --subtle-bg: var(--theme-subtle-bg);
       --table-head: var(--theme-table-head);
       --row-hover: var(--theme-row-hover);
-      --plot-bg: var(--theme-plot-bg-dark);
-      --plot-surface-bg: var(--theme-plot-bg-dark);
+      --plot-bg: var(--bg);
+      --plot-surface-bg: var(--bg);
       --grid: var(--theme-grid);
       --axis: #bdc1c6;
       --plot-muted: #80868b;
@@ -611,15 +611,13 @@
       white-space: nowrap;
       margin-left: 0;
     }
-    .axis-row .secondary-y { display: none; }
-    body.dual-plot .axis-row .secondary-y { display: flex; }
 
     .figure {
       position: relative;
       flex: 1;
       min-height: 300px;
       background: var(--plot-surface-bg);
-      border: 1px solid var(--line);
+      border: none;
       border-radius: 0;
       overflow: hidden;
     }
@@ -674,15 +672,8 @@
     }
     .tool-btn:disabled { opacity: 0.3; }
     .tool-btn svg { display: block; }
-    .plot-theme-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 46px;
-      font-size: 11px;
-      font-weight: 700;
-      line-height: 1;
-    }
+    .plot-theme-icon-dark { display: none; }
+    .plot-theme-icon-light { display: block; }
     .visually-hidden-color {
       position: absolute;
       width: 0;
@@ -1100,8 +1091,8 @@
       --plot-text: #1a1c1e;
     }
     body.plot-theme-dark {
-      --plot-bg: var(--theme-plot-bg-dark);
-      --plot-surface-bg: var(--theme-plot-bg-dark);
+      --plot-bg: var(--bg);
+      --plot-surface-bg: var(--bg);
       --grid: #202124;
       --axis: #bdc1c6;
       --plot-muted: #80868b;

@@ -34,23 +34,13 @@
             <span class="browser-target-label" data-side="data">data</span>
           </button>
         </div>
-        <div class="browser-header">
-          <input id="browserSearch" type="search" placeholder="Search file / kind / condition…" autocomplete="off">
-          <button id="browserAdvancedBtn" class="browser-advanced-toggle icon-btn" type="button" title="Advanced filters" aria-expanded="false" aria-controls="browserAdvancedFilters">⋯</button>
-        </div>
         <div class="browser-filter-grid">
           <label for="measurementFilterSelect">kind</label>
           <select id="measurementFilterSelect"></select>
           <label for="timeFilterSelect">condition</label>
           <select id="timeFilterSelect"></select>
-        </div>
-        <div class="browser-advanced-filters" id="browserAdvancedFilters">
-          <div class="browser-filter-grid">
-            <label for="sampleFilterSelect">sample</label>
-            <select id="sampleFilterSelect"></select>
-            <label for="expFilterSelect">exp</label>
-            <select id="expFilterSelect"></select>
-          </div>
+          <label for="sampleFilterSelect">sample</label>
+          <select id="sampleFilterSelect"></select>
         </div>
         <div class="browser-list" id="browserTree" tabindex="0"></div>
       </aside>
@@ -70,14 +60,13 @@
           <label class="inline" for="yAxis">y</label>
           <select id="yAxis"></select>
         </div>
-        <label class="check-row compact" for="dualPlotInput">
-          <input id="dualPlotInput" type="checkbox">
-          2 panels
-        </label>
-        <div class="secondary-y" id="yAxis2Wrap">
+        <div>
           <label class="inline" for="yAxis2">y2</label>
           <select id="yAxis2"></select>
         </div>
+        <label class="check-row compact" for="dualPlotInput">
+          <input id="dualPlotInput" type="checkbox">
+        </label>
       </div>
 
       <div class="figure">

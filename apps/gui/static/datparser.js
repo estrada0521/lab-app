@@ -1,14 +1,13 @@
 // Plain JavaScript for now; this file is separated so it can be replaced by a TypeScript build later.
     const browserTree = document.getElementById("browserTree");
     const workspaceMain = document.getElementById("workspaceMain");
-    const browserSearch = document.getElementById("browserSearch");
+
     const browserTargetToggle = document.getElementById("browserTargetToggle");
     const measurementFilterSelect = document.getElementById("measurementFilterSelect");
     const timeFilterSelect = document.getElementById("timeFilterSelect");
-    const browserAdvancedBtn = document.getElementById("browserAdvancedBtn");
-    const browserAdvancedFilters = document.getElementById("browserAdvancedFilters");
+
     const sampleFilterSelect = document.getElementById("sampleFilterSelect");
-    const expFilterSelect = document.getElementById("expFilterSelect");
+
     const rawMemoInput = document.getElementById("rawMemoInput");
     const rawMemoSaveBtn = document.getElementById("rawMemoSaveBtn");
     const rawMemoRevertBtn = document.getElementById("rawMemoRevertBtn");
@@ -55,7 +54,7 @@
     const plotColorsBtn = document.getElementById("plotColorsBtn");
     const plotColorInput = document.getElementById("plotColorInput");
     const plotThemeToggleBtn = document.getElementById("plotThemeToggleBtn");
-    const plotThemeToggleLabel = document.getElementById("plotThemeToggleLabel");
+    const plotGridToggleBtn = document.getElementById("plotGridToggleBtn");
     const savePlotPngBtn = document.getElementById("savePlotPngBtn");
     const savePlotPdfBtn = document.getElementById("savePlotPdfBtn");
     const sideTabButtons = Array.from(document.querySelectorAll("[data-panel-tab]"));
@@ -115,6 +114,7 @@
     let browserTarget = localStorage.getItem("datparser-browser-target") || "rawdata";
     let plotColorTouched = false;
     let plotTheme = "light";
+    let plotGridVisible = true;
     let previewFiltersEnabled = false;
     let plotAnimationProgress = 1;
     let plotInfoExportEnabled = false;
@@ -123,8 +123,8 @@
       style: "line",
       lineColor: plotColorInput?.value || "#111111",
       lineWidth: 1.4,
-      tickFontSize: 19,
-      labelFontSize: 24,
+      tickFontSize: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--theme-text-size")) || 13,
+      labelFontSize: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--theme-text-size")) || 13,
     };
 
     function setStatus(message, isError = false) {
@@ -175,7 +175,7 @@
     }
 
     function dualPlotEnabled() {
-      return Boolean(dualPlotInput && dualPlotInput.checked && yAxis2 && yAxis2.value && !yAxis2.disabled);
+      return Boolean(dualPlotInput && dualPlotInput.checked && yAxis2 && yAxis2.value);
     }
 
     function updateDualPlotControls() {
@@ -183,7 +183,6 @@
       if (dualPlotInput.checked && names.length > 1 && yAxis2.value === yAxis.value) {
         yAxis2.value = secondaryAxisDefault(names, yAxis.value, "");
       }
-      if (yAxis2) yAxis2.disabled = !dualPlotInput.checked || !names.length;
       const enabled = dualPlotEnabled();
       document.body.classList.toggle("dual-plot", enabled);
       updateRangeButtons();
@@ -414,16 +413,12 @@
       const measurement = measurementFilterSelect.value;
       const dependance = timeFilterSelect.value;
       const sample = sampleFilterSelect?.value || "";
-      const exp = expFilterSelect?.value || "";
-      const query = (browserSearch.value || "").trim().toLowerCase();
       return workspaceFiles.filter(item => {
         const parts = pathParts(item.path, item.kind, item);
         return item.kind === browserTarget
           && (!measurement || parts.measurement === measurement)
           && (!dependance || conditionToken(parts) === dependance)
-          && (!sample || parts.sample === sample)
-          && (!exp || parts.exp === exp)
-          && (!query || browserSearchText(item).includes(query));
+          && (!sample || parts.sample === sample);
       });
     }
 
@@ -453,8 +448,7 @@
         .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
       setSelectOptions(measurementFilterSelect, [["", "all kinds"], ...measurements.map(value => [value, value])]);
       setSelectOptions(timeFilterSelect, [["", "all conditions"], ...dependances.map(value => [value, value])]);
-      if (sampleFilterSelect) setSelectOptions(sampleFilterSelect, [["", "all samples"], ...samples.map(id => [id, samplesIndex[id] ? `${samplesIndex[id]} (${id})` : id])]);
-      if (expFilterSelect) setSelectOptions(expFilterSelect, [["", "all exps"], ...exps.map(id => [id, expsIndex[id] ? `${expsIndex[id]} (${id})` : id])]);
+      if (sampleFilterSelect) setSelectOptions(sampleFilterSelect, [["", "all samples"], ...samples.map(id => [id, samplesIndex[id] || id])]);
     }
 
     function updateBrowserFiles(options = {}) {
@@ -1500,9 +1494,10 @@
       if (plotThemeToggleBtn) {
         plotThemeToggleBtn.classList.toggle("active", plotTheme === "dark");
         plotThemeToggleBtn.setAttribute("aria-pressed", plotTheme === "dark" ? "true" : "false");
-        plotThemeToggleBtn.title = `Graph theme: ${plotTheme === "dark" ? "dark" : "light"}`;
+        plotThemeToggleBtn.title = plotTheme === "dark" ? "Switch to light theme" : "Switch to dark theme";
+        plotThemeToggleBtn.querySelector(".plot-theme-icon-dark")?.style.setProperty("display", plotTheme === "dark" ? "block" : "none");
+        plotThemeToggleBtn.querySelector(".plot-theme-icon-light")?.style.setProperty("display", plotTheme === "light" ? "block" : "none");
       }
-      if (plotThemeToggleLabel) plotThemeToggleLabel.textContent = plotTheme === "dark" ? "Light" : "Dark";
       if (plotColorInput) {
         const previousDefault = defaultPlotLineColor(previousTheme);
         const nextDefault = defaultPlotLineColor(plotTheme);
@@ -1531,19 +1526,29 @@
     }
 
     function exportInfoLines() {
-      const item = currentWorkspaceItem();
-      const parts = pathParts(currentPath, currentKind, item);
-      return [
-        parts.file || currentPath.split("/").pop(),
-        `path: ${currentPath}`,
-        parts.material ? `material: ${parts.material}` : "",
-        parts.sample ? `sample: ${parts.sample}` : "",
-        parts.measurement ? `kind: ${parts.measurement}` : "",
-        parts.dependance ? `condition: ${parts.dependance}` : "",
-        parts.exp ? `exp: ${parts.exp}` : "",
-        currentPlot?.timeColumn ? `time: ${currentPlot.timeColumn}` : "",
-        previewFiltersEnabled ? "filters: preview" : "",
-      ];
+      const grid = currentKind === "data" ? dataInfoGrid : rawInfoGrid;
+      if (!grid) return [];
+      const lines = [];
+      const children = Array.from(grid.children);
+      let i = 0;
+      while (i < children.length) {
+        const el = children[i];
+        if (el.classList.contains("info-group") || el.classList.contains("info-calc-group")) {
+          const key = el.querySelector(".data-info-key")?.textContent?.trim() || "";
+          const val = el.querySelector(".data-info-val")?.textContent?.trim() || "";
+          if (key && val && val !== "—") lines.push(`${key}: ${val}`);
+          i++;
+        } else if (el.classList.contains("data-info-key")) {
+          const key = el.textContent?.trim() || "";
+          const next = children[i + 1];
+          const val = next?.classList.contains("data-info-val") ? next.textContent?.trim() : "";
+          if (key && val && val !== "—") lines.push(`${key}: ${val}`);
+          i += 2;
+        } else {
+          i++;
+        }
+      }
+      return lines;
     }
 
     function exportCanvas(background = null) {
@@ -1680,23 +1685,27 @@
         const xTicks = niceTicks(view.xMin, view.xMax, 8);
         const yTicks = niceTicks(view.yMin, view.yMax, panels.length > 1 ? 4 : 6);
 
-        // grid
-        ctx.strokeStyle = cssVar("--grid") || "#f0f0f0";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        for (const t of xTicks) {
-          const [cx] = dataToCanvas(t, 0, view, area);
-          if (cx < area.left - 0.5 || cx > area.left + area.width + 0.5) continue;
-          ctx.moveTo(Math.round(cx) + 0.5, area.top);
-          ctx.lineTo(Math.round(cx) + 0.5, area.top + area.height);
+        // grid (dashed)
+        if (plotGridVisible) {
+          ctx.strokeStyle = cssVar("--line") || "#3e3e3e";
+          ctx.lineWidth = 1;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          for (const t of xTicks) {
+            const [cx] = dataToCanvas(t, 0, view, area);
+            if (cx < area.left - 0.5 || cx > area.left + area.width + 0.5) continue;
+            ctx.moveTo(Math.round(cx) + 0.5, area.top);
+            ctx.lineTo(Math.round(cx) + 0.5, area.top + area.height);
+          }
+          for (const t of yTicks) {
+            const [, cy] = dataToCanvas(0, t, view, area);
+            if (cy < area.top - 0.5 || cy > area.top + area.height + 0.5) continue;
+            ctx.moveTo(area.left, Math.round(cy) + 0.5);
+            ctx.lineTo(area.left + area.width, Math.round(cy) + 0.5);
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
         }
-        for (const t of yTicks) {
-          const [, cy] = dataToCanvas(0, t, view, area);
-          if (cy < area.top - 0.5 || cy > area.top + area.height + 0.5) continue;
-          ctx.moveTo(area.left, Math.round(cy) + 0.5);
-          ctx.lineTo(area.left + area.width, Math.round(cy) + 0.5);
-        }
-        ctx.stroke();
 
         // data lines (clipped to plot area)
         ctx.save();
@@ -1788,8 +1797,8 @@
         ctx.beginPath();
         ctx.rect(area.left, area.top, area.width, area.height);
         ctx.clip();
-        ctx.fillStyle = "rgba(255, 255, 255, 0.14)";
-        ctx.strokeStyle = cssVar("--selected-edge") || "#f2f2f2";
+        ctx.fillStyle = "rgba(128, 128, 128, 0.12)";
+        ctx.strokeStyle = cssVar("--axis") || "#888";
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 3]);
         ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
@@ -1954,20 +1963,8 @@
       button.addEventListener("click", () => setSidePanelTab(button.dataset.panelTab));
     }
     browserTargetToggle?.addEventListener("click", () => setBrowserTarget(browserTarget === "rawdata" ? "data" : "rawdata"));
-    if (browserSearch) {
-      browserSearch.addEventListener("input", () => updateBrowserFiles({selectFirstIfCurrentHidden: false}));
-    }
-    for (const element of [measurementFilterSelect, timeFilterSelect]) {
+    for (const element of [measurementFilterSelect, timeFilterSelect, sampleFilterSelect]) {
       element?.addEventListener("change", () => updateBrowserFiles({selectFirstIfCurrentHidden: true}));
-    }
-    if (sampleFilterSelect) sampleFilterSelect.addEventListener("change", () => updateBrowserFiles({selectFirstIfCurrentHidden: true}));
-    if (expFilterSelect) expFilterSelect.addEventListener("change", () => updateBrowserFiles({selectFirstIfCurrentHidden: true}));
-    if (browserAdvancedBtn && browserAdvancedFilters) {
-      browserAdvancedBtn.addEventListener("click", () => {
-        const open = browserAdvancedFilters.classList.toggle("is-open");
-        browserAdvancedBtn.classList.toggle("active", open);
-        browserAdvancedBtn.setAttribute("aria-expanded", open ? "true" : "false");
-      });
     }
     generateDataBtn.addEventListener("click",
       () => generateData().catch(err => setStatus(err.message, true)));
@@ -2013,6 +2010,14 @@
     if (plotThemeToggleBtn) {
       plotThemeToggleBtn.addEventListener("click", () => {
         applyPlotTheme(isPlotThemeDark() ? "light" : "dark");
+      });
+    }
+    if (plotGridToggleBtn) {
+      plotGridToggleBtn.addEventListener("click", () => {
+        plotGridVisible = !plotGridVisible;
+        plotGridToggleBtn.classList.toggle("active", plotGridVisible);
+        plotGridToggleBtn.setAttribute("aria-pressed", plotGridVisible ? "true" : "false");
+        render();
       });
     }
     if (parameterToggle) {
