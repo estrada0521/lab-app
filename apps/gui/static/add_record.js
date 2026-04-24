@@ -10,11 +10,6 @@
           <button class="ar-tab" role="tab" data-kind="sample" type="button">Sample</button>
           <button class="ar-tab" role="tab" data-kind="exp" type="button">Experiment</button>
         </div>
-        <button class="ar-close" type="button" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-            <path d="M2 2L12 12M12 2L2 12"/>
-          </svg>
-        </button>
       </div>
       <div class="ar-id-row">
         <span class="ar-id-label">ID</span>
@@ -400,11 +395,8 @@
         tab.addEventListener("click", () => switchKind(tab.dataset.kind));
       });
 
-      const closeBtn = document.querySelector(".ar-close");
-      if (closeBtn) closeBtn.addEventListener("click", closeDialog);
-
       document.getElementById("arOverlay").addEventListener("click", e => {
-        if (e.target === e.currentTarget) closeDialog();
+        if (e.target === e.currentTarget || e.target === document.getElementById("arDialog")) closeDialog();
       });
 
       document.addEventListener("keydown", e => {
