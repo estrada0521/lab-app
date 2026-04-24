@@ -49,6 +49,7 @@ STATIC_TYPES = {
     "markdown_render.js": "application/javascript; charset=utf-8",
     "analysis.js": "application/javascript; charset=utf-8",
     "build.js": "application/javascript; charset=utf-8",
+    "add_record.js": "application/javascript; charset=utf-8",
 }
 STATIC_VERSION = str(
     max(path.stat().st_mtime_ns for path in STATIC_DIR.rglob("*") if path.is_file())
@@ -127,6 +128,85 @@ def _data_result_payload(root: Path, result: object) -> dict[str, object]:
     if isinstance(metadata, dict):
         payload["display_name"] = str(metadata.get("display_name") or "").strip()
     return payload
+
+
+def _next_available_id(directory: Path) -> str:
+    if not directory.exists():
+        return "000001"
+    existing: list[int] = []
+    for item in directory.iterdir():
+        if item.is_dir():
+            try:
+                existing.append(int(item.name))
+            except ValueError:
+                pass
+    return f"{max(existing, default=0) + 1:06d}"
+
+
+_ALLOWED_RECORD_KINDS = {"rawdata", "sample", "exp"}
+_ALLOWED_FILE_EXTS: dict[str, set[str]] = {
+    "rawdata:payload": {".dat", ".csv", ".txt", ".tsv"},
+    "sample:image": {".jpg", ".jpeg", ".png", ".webp", ".gif"},
+    "exp:doc": {".md", ".txt"},
+}
+
+
+def _create_record(root: Path, kind: str, metadata: dict[str, object]) -> str:
+    if kind == "rawdata":
+        directory = root / "rawdata"
+    elif kind == "sample":
+        directory = root / "samples"
+    elif kind == "exp":
+        directory = root / "exp"
+    else:
+        raise ValueError(f"unknown kind: {kind}")
+    new_id = _next_available_id(directory)
+    record_dir = directory / new_id
+    record_dir.mkdir(parents=True, exist_ok=False)
+    meta_path = record_dir / "metadata.json"
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(metadata, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+    return new_id
+
+
+def _save_record_file(root: Path, kind: str, record_id: str, filename: str, slot: str, file_bytes: bytes) -> dict[str, object]:
+    _entity_id(record_id)
+    safe_name = Path(filename).name
+    if not safe_name or any(c in safe_name for c in ("/", "\\", "\0")):
+        raise ValueError("invalid filename")
+    ext = Path(safe_name).suffix.lower()
+    slot_key = f"{kind}:{slot}"
+    allowed_exts = _ALLOWED_FILE_EXTS.get(slot_key)
+    if allowed_exts is not None and ext not in allowed_exts:
+        raise ValueError(f"file extension {ext!r} not allowed for {slot_key}")
+
+    if kind == "rawdata":
+        record_dir = root / "rawdata" / record_id
+        target_path = record_dir / safe_name
+    elif kind == "sample":
+        record_dir = root / "samples" / record_id
+        if slot == "image":
+            images_dir = record_dir / "images"
+            images_dir.mkdir(exist_ok=True)
+            target_path = images_dir / safe_name
+        else:
+            target_path = record_dir / safe_name
+    elif kind == "exp":
+        record_dir = root / "exp" / record_id
+        if slot == "doc":
+            docs_dir = record_dir / "docs"
+            docs_dir.mkdir(exist_ok=True)
+            target_path = docs_dir / safe_name
+        else:
+            target_path = record_dir / safe_name
+    else:
+        raise ValueError(f"unknown kind: {kind}")
+
+    if not record_dir.exists():
+        raise FileNotFoundError(f"record not found: {kind}/{record_id}")
+    target_path.write_bytes(file_bytes)
+    return {"ok": True, "path": core.relative_text(target_path, root)}
 
 
 def _is_raw_source_path(root: Path, path: Path) -> bool:
@@ -537,6 +617,18 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 query = parse_qs(parsed.query)
                 kind, record_id, path_text = _memo_request_from_query(query)
                 self.send_json(_memo_get(self.server.db_root, kind=kind, record_id=record_id, path_text=path_text))
+            elif parsed.path == "/api/next-id":
+                query = parse_qs(parsed.query)
+                kind = query.get("kind", [""])[0].strip().lower()
+                if kind not in _ALLOWED_RECORD_KINDS:
+                    self.send_json({"error": f"unknown kind: {kind}"}, HTTPStatus.BAD_REQUEST)
+                    return
+                dir_map = {
+                    "rawdata": self.server.db_root / "rawdata",
+                    "sample": self.server.db_root / "samples",
+                    "exp": self.server.db_root / "exp",
+                }
+                self.send_json({"id": _next_available_id(dir_map[kind]), "kind": kind})
             elif parsed.path == "/api/experiment-doc":
                 query = parse_qs(parsed.query)
                 exp_id = query.get("id", [""])[0]
@@ -559,6 +651,17 @@ class DatParserHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/shutdown":
                 self.send_json({"stopping": True})
                 threading.Thread(target=self.server.shutdown, daemon=True).start()
+                return
+            if parsed.path == "/api/upload-record-file":
+                query = parse_qs(parsed.query)
+                kind = query.get("kind", [""])[0].strip().lower()
+                record_id = query.get("id", [""])[0].strip()
+                filename = query.get("filename", [""])[0].strip()
+                slot = query.get("slot", ["payload"])[0].strip()
+                length = int(self.headers.get("Content-Length", "0"))
+                file_bytes = self.rfile.read(length) if length else b""
+                result = _save_record_file(self.server.db_root, kind, record_id, filename, slot, file_bytes)
+                self.send_json(result)
                 return
             length = int(self.headers.get("Content-Length", "0"))
             body = self.rfile.read(length).decode("utf-8") if length else ""
@@ -585,6 +688,16 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 response = _data_result_payload(self.server.db_root, result)
                 response["direct_rawdata"] = {"source": core.relative_text(source_path, self.server.db_root)}
                 self.send_json(response)
+            elif parsed.path == "/api/create-record":
+                kind = str(payload.get("kind", "")).strip().lower()
+                if kind not in _ALLOWED_RECORD_KINDS:
+                    self.send_json({"error": f"unknown kind: {kind}"}, HTTPStatus.BAD_REQUEST)
+                    return
+                metadata = payload.get("metadata", {})
+                if not isinstance(metadata, dict):
+                    raise ValueError("metadata must be an object")
+                new_id = _create_record(self.server.db_root, kind, metadata)
+                self.send_json({"id": new_id, "kind": kind})
             elif parsed.path == "/api/memo":
                 kind, record_id, path_text, memo = _memo_request_from_payload(payload)
                 self.send_json(_memo_post(self.server.db_root, kind=kind, record_id=record_id, path_text=path_text, memo=memo))

@@ -221,17 +221,7 @@ function renderDetail(detail) {
     }
     html += `</div>`;
   }
-  if (detail.attachments && detail.attachments.length) {
-    html += `<div class="analysis-section-label">Attachments</div><div class="analysis-attachments">`;
-    for (const attPath of detail.attachments) {
-      const name = attPath.split("/").pop();
-      html += `<div class="build-attachment-item">` +
-        `<a class="catalog-record-link" href="/api/repo-file?path=${encodeURIComponent(attPath)}" target="_blank">` +
-        `<span class="catalog-record-link-label">${escapeHtml(name)}</span>` +
-        `</a></div>`;
-    }
-    html += `</div>`;
-  }
+
   const hasPdf = detail.output_files && detail.output_files.some(f => f.suffix === ".pdf" && f.exists);
   buildBody.classList.toggle("has-pdf", Boolean(hasPdf));
   buildBody.innerHTML = html;
