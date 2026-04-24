@@ -356,21 +356,11 @@ function renderAutoInfoGrid(container, meta, options = {}) {
 function createMemoPanel(options) {
   const input = options.input;
   const saveBtn = options.saveBtn;
-  const revertBtn = options.revertBtn;
-  const statusEl = options.statusEl;
   const apiJson = options.apiJson;
 
   let currentTarget = null;
   let original = "";
-  let updatedAt = null;
   let saving = false;
-
-  function setStatus(text, kind = "") {
-    if (!statusEl) return;
-    statusEl.textContent = text || "";
-    statusEl.className = "memo-status";
-    if (kind) statusEl.classList.add(kind);
-  }
 
   function updateButtons() {
     if (!input) return;
@@ -378,22 +368,11 @@ function createMemoPanel(options) {
     const dirty = hasTarget && input.value !== original;
     input.disabled = !hasTarget;
     if (saveBtn) saveBtn.disabled = !hasTarget || !dirty || saving;
-    if (revertBtn) revertBtn.disabled = !hasTarget || !dirty || saving;
-    if (!hasTarget) {
-      setStatus("");
-    } else if (dirty) {
-      setStatus("unsaved changes", "dirty");
-    } else if (updatedAt) {
-      setStatus(`saved · ${updatedAt}`, "saved");
-    } else {
-      setStatus("no memo yet");
-    }
   }
 
   function reset() {
     currentTarget = null;
     original = "";
-    updatedAt = null;
     if (input) input.value = "";
     updateButtons();
   }
@@ -407,15 +386,12 @@ function createMemoPanel(options) {
     try {
       const payload = await apiJson(`/api/memo?kind=${encodeURIComponent(currentTarget.kind)}&id=${encodeURIComponent(currentTarget.id)}`);
       original = payload.memo || "";
-      updatedAt = payload.updated_at || null;
       input.value = original;
       updateButtons();
     } catch {
       original = "";
-      updatedAt = null;
       input.value = "";
       updateButtons();
-      setStatus("memo load failed", "error");
     }
   }
 
@@ -423,7 +399,6 @@ function createMemoPanel(options) {
     if (!input || !currentTarget?.kind || !currentTarget?.id || saving) return;
     saving = true;
     updateButtons();
-    setStatus("saving…", "info");
     try {
       const payload = await apiJson("/api/memo", {
         method: "POST",
@@ -431,20 +406,13 @@ function createMemoPanel(options) {
         body: JSON.stringify({kind: currentTarget.kind, id: currentTarget.id, memo: input.value}),
       });
       original = payload.memo || "";
-      updatedAt = payload.updated_at || null;
       input.value = original;
-    } catch (err) {
-      setStatus(err.message || "save failed", "error");
+    } catch {
+      // silent
     } finally {
       saving = false;
       updateButtons();
     }
-  }
-
-  function revert() {
-    if (!input) return;
-    input.value = original;
-    updateButtons();
   }
 
   if (input) input.addEventListener("input", updateButtons);
@@ -455,11 +423,10 @@ function createMemoPanel(options) {
     }
   });
   if (saveBtn) saveBtn.addEventListener("click", save);
-  if (revertBtn) revertBtn.addEventListener("click", revert);
 
   updateButtons();
 
-  return {load, save, reset, revert};
+  return {load, save, reset};
 }
 
 initPageMenu();

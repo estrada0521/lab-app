@@ -13,8 +13,6 @@ const buildSideLinks = document.getElementById("buildSideLinks");
 const buildSidePanelSelect = document.getElementById("buildSidePanelSelect");
 const memoInput = document.getElementById("memoInput");
 const memoSaveBtn = document.getElementById("memoSaveBtn");
-const memoRevertBtn = document.getElementById("memoRevertBtn");
-const memoStatusEl = document.getElementById("memoStatus");
 const statusEl = document.getElementById("status");
 
 let entries = [];
@@ -22,8 +20,6 @@ let currentId = "";
 const memoPanel = createMemoPanel({
   input: memoInput,
   saveBtn: memoSaveBtn,
-  revertBtn: memoRevertBtn,
-  statusEl: memoStatusEl,
   apiJson,
 });
 
@@ -61,7 +57,6 @@ function renderList(items) {
     btn.dataset.id = entry.id;
     btn.innerHTML = `
       <div class="catalog-list-name" title="Click again to rename">${escapeHtml(entry.display_name || entry.id)}</div>
-      <div class="catalog-list-meta">${escapeHtml(entry.id)}</div>
     `;
     btn.addEventListener("click", (e) => {
       if (btn.classList.contains("current")) {

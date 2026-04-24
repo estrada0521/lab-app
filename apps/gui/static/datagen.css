@@ -688,6 +688,7 @@ body.catalog-page section {
   overflow: auto;
 }
 
+
 .catalog-page .catalog-list {
   display: flex;
   flex-direction: column;
@@ -1348,10 +1349,6 @@ body.catalog-page section {
 .analysis-page .catalog-content-pane {
   overflow-y: auto;
   padding: 0;
-}
-.analysis-page .catalog-content-head {
-  padding: 16px 20px 8px;
-  border-bottom: 1px solid var(--line);
 }
 .analysis-body {
   padding: 16px 20px;

@@ -10,8 +10,6 @@
 
     const rawMemoInput = document.getElementById("rawMemoInput");
     const rawMemoSaveBtn = document.getElementById("rawMemoSaveBtn");
-    const rawMemoRevertBtn = document.getElementById("rawMemoRevertBtn");
-    const rawMemoStatus = document.getElementById("rawMemoStatus");
     const xAxis = document.getElementById("xAxis");
     const yAxis = document.getElementById("yAxis");
     const dualPlotInput = document.getElementById("dualPlotInput");
@@ -256,8 +254,6 @@
     const rawMemoPanel = createRawMemoPanel({
       input: rawMemoInput,
       saveBtn: rawMemoSaveBtn,
-      revertBtn: rawMemoRevertBtn,
-      statusEl: rawMemoStatus,
       mode: "direct",
     });
 

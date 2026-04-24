@@ -20,16 +20,12 @@ const sidePanelSelect = document.getElementById("recordSidePanelSelect");
 const recordJson = document.getElementById("recordJson");
 const memoInput = document.getElementById("memoInput");
 const memoSaveBtn = document.getElementById("memoSaveBtn");
-const memoRevertBtn = document.getElementById("memoRevertBtn");
-const memoStatusEl = document.getElementById("memoStatus");
 
 let entries = [];
 let currentId = "";
 const memoPanel = createMemoPanel({
   input: memoInput,
   saveBtn: memoSaveBtn,
-  revertBtn: memoRevertBtn,
-  statusEl: memoStatusEl,
   apiJson,
 });
 
@@ -215,14 +211,14 @@ function renderList(items) {
   for (const entry of items) {
     const metaText = pageKind === "experiments"
       ? [entry.start_date, entry.end_date].filter(Boolean).join(" - ") || entry.time || ""
-      : entry.id;
+      : "";
     const button = document.createElement("button");
     button.type = "button";
     button.className = "catalog-list-item";
     button.dataset.id = entry.id;
     button.innerHTML = `
       <div class="catalog-list-name" title="Click again to rename">${escapeHtml(entry.display_name || entry.id)}</div>
-      <div class="catalog-list-meta">${escapeHtml(metaText)}</div>
+      ${metaText ? `<div class="catalog-list-meta">${escapeHtml(metaText)}</div>` : ""}
     `;
     button.addEventListener("click", (e) => {
       if (button.classList.contains("current")) {
