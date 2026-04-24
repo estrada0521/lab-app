@@ -65,11 +65,14 @@
       display: grid;
       grid-template-columns: minmax(220px, var(--left-pane-size)) 10px minmax(0, 1fr) 10px minmax(260px, var(--right-pane-size));
       gap: 0 10px;
-      padding: 8px 14px 10px;
+      padding: 0 14px;
       align-items: stretch;
       flex: 1;
       min-height: 0;
       overflow: hidden;
+    }
+    main > * {
+      padding-bottom: 10px;
     }
     section {
       background: var(--panel);
@@ -989,20 +992,23 @@
     }
 
     .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
       display: flex;
-      flex: 0 0 auto;
       align-items: center;
-      justify-content: flex-start;
       gap: 16px;
-      padding: 6px 16px;
-      border-top: none;
+      padding: 4px 16px;
       background: transparent;
       font-size: 13px;
       color: var(--muted);
-      min-height: 32px;
+      pointer-events: none;
+      z-index: 100;
     }
     .footer .status { flex: 1; word-break: break-word; }
-    .footer .status.error { color: var(--warn); font-weight: 600; }
+    .footer .status:empty { display: none; }
+    .footer .status.error { color: var(--warn); font-weight: 600; pointer-events: auto; }
     @media (max-width: 1400px) {
       main {
         grid-template-columns: minmax(220px, var(--left-pane-size)) 10px minmax(0, 1fr) 10px minmax(240px, var(--right-pane-size));
@@ -1085,9 +1091,9 @@
       flex: 1;
       resize: none;
       min-height: 60px;
-      padding: 8px;
+      padding: 8px 12px;
       border: 1px solid var(--line);
-      border-radius: var(--radius);
+      border-radius: 18px;
       background: var(--input-bg);
       color: var(--text);
       transition: var(--transition);
