@@ -392,6 +392,7 @@
     .browser-list:focus { outline: none; }
     .browser-list:focus-visible { outline: 2px solid var(--selected); outline-offset: -2px; border-radius: 6px; }
     .browser-file {
+      position: relative;
       width: 100%;
       font: inherit;
       font-size: var(--theme-text-size);
@@ -450,6 +451,34 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    .copy-path-btn {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      background: var(--theme-panel, var(--panel));
+      color: var(--muted);
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.12s, color 0.1s;
+      flex-shrink: 0;
+      line-height: 1;
+      user-select: none;
+    }
+    .browser-file:hover .copy-path-btn {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .copy-path-btn:hover { color: var(--text); }
+    .copy-path-btn.success { color: #34c759; }
+    .copy-path-btn svg { display: block; }
     .tree-group {
       display: flex;
       flex-direction: column;

@@ -23,6 +23,7 @@ const memoSaveBtn = document.getElementById("memoSaveBtn");
 
 let entries = [];
 let currentId = "";
+let dbRoot = "";
 const memoPanel = createMemoPanel({
   input: memoInput,
   saveBtn: memoSaveBtn,
@@ -219,7 +220,20 @@ function renderList(items) {
     button.innerHTML = `
       <div class="catalog-list-name" title="Click again to rename">${escapeHtml(entry.display_name || entry.id)}</div>
       ${metaText ? `<div class="catalog-list-meta">${escapeHtml(metaText)}</div>` : ""}
+      <span class="copy-path-btn" role="button" title="Copy absolute path" tabindex="-1">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      </span>
     `;
+    const copyBtn = button.querySelector(".copy-path-btn");
+    copyBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const dir = pageKind === "samples" ? "samples" : "exp";
+      const absPath = dbRoot ? dbRoot.replace(/\/$/, "") + "/" + dir + "/" + entry.id : dir + "/" + entry.id;
+      navigator.clipboard.writeText(absPath).then(() => {
+        copyBtn.classList.add("success");
+        setTimeout(() => copyBtn.classList.remove("success"), 1200);
+      });
+    });
     button.addEventListener("click", (e) => {
       if (button.classList.contains("current")) {
         const nameEl = button.querySelector(".catalog-list-name");
@@ -313,7 +327,8 @@ sidePanelSelect?.addEventListener("change", () => setSidePanel(sidePanelSelect.v
 
 async function loadRecords() {
   setStatus("Loading…");
-  const payload = await apiJson(listUrl());
+  const [payload, configPayload] = await Promise.all([apiJson(listUrl()), apiJson("/api/config")]);
+  dbRoot = configPayload.db_root || "";
   entries = payload.entries || [];
 
   if (pageKind === "samples") {

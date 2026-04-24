@@ -13,6 +13,7 @@ const statusEl = document.getElementById("status");
 
 let calculators = [];
 let selectedCalculatorId = "";
+let dbRoot = "";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -124,7 +125,19 @@ function renderList(items) {
     button.dataset.id = calculator.id;
     button.innerHTML = `
       <div class="catalog-list-name" title="Click again to rename">${escapeHtml(calculator.display_name || calculator.id)}</div>
+      <span class="copy-path-btn" role="button" title="Copy absolute path" tabindex="-1">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      </span>
     `;
+    button.querySelector(".copy-path-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const absPath = dbRoot ? dbRoot.replace(/\/$/, "") + "/calculators/" + calculator.id : "calculators/" + calculator.id;
+      navigator.clipboard.writeText(absPath).then(() => {
+        const cb = button.querySelector(".copy-path-btn");
+        cb.classList.add("success");
+        setTimeout(() => cb.classList.remove("success"), 1200);
+      });
+    });
     button.addEventListener("click", () => {
       if (button.classList.contains("current")) {
         const nameEl = button.querySelector(".catalog-list-name");
@@ -198,7 +211,8 @@ function startRename(btn, calculator, nameEl) {
 
 async function loadCalculators() {
   setStatus("Loading calculators…");
-  const payload = await apiJson("/api/calculators");
+  const [payload, configPayload] = await Promise.all([apiJson("/api/calculators"), apiJson("/api/config")]);
+  dbRoot = configPayload.db_root || "";
   calculators = payload.calculators || [];
   renderList(calculators);
   selectCalculator(calculators[0]?.id || "");

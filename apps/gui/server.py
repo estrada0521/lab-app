@@ -545,6 +545,8 @@ class DatParserHandler(BaseHTTPRequestHandler):
                     return
                 with open(meta_path, encoding="utf-8") as f:
                     self.send_json(json.load(f))
+            elif parsed.path == "/api/config":
+                self.send_json({"db_root": str(self.server.db_root)})
             elif parsed.path == "/api/calculators":
                 self.send_json({"calculators": data_gui.list_calculators(self.server.db_root, include_readme=True)})
             elif parsed.path == "/api/table":

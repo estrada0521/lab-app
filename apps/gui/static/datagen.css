@@ -684,6 +684,7 @@ body.catalog-page {
 }
 
 .catalog-page .catalog-list-item {
+  position: relative;
   width: 100%;
   text-align: left;
   display: flex;
@@ -727,6 +728,11 @@ body.catalog-page {
   text-overflow: ellipsis;
 }
 .catalog-page .catalog-list-item.current .catalog-list-name { cursor: text; }
+
+.catalog-page .catalog-list-item:hover .copy-path-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
 
 .catalog-page .catalog-list-meta {
   font-size: var(--theme-text-size);

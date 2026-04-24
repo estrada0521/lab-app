@@ -110,6 +110,7 @@
       if (_ctxMenu) { _ctxMenu.remove(); _ctxMenu = null; }
     }
     document.addEventListener("keydown", e => { if (e.key === "Escape") hideContextMenu(); });
+    let dbRoot = "";
     let browserTarget = localStorage.getItem("lab-browser-target") || "rawdata";
     let plotColorTouched = false;
     let plotTheme = "light";
@@ -327,7 +328,19 @@
         const primaryLabel = browserPrimaryLabel(item, entityId);
         row.innerHTML = `
           <div class="browser-file-name" title="Click again to rename">${escapeHtml(primaryLabel)}</div>
+          <span class="copy-path-btn" role="button" title="Copy absolute path" tabindex="-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          </span>
         `;
+        const copyBtn = row.querySelector(".copy-path-btn");
+        copyBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const absPath = dbRoot ? dbRoot.replace(/\/$/, "") + "/" + item.path.replace(/^\//, "") : item.path;
+          navigator.clipboard.writeText(absPath).then(() => {
+            copyBtn.classList.add("success");
+            setTimeout(() => copyBtn.classList.remove("success"), 1200);
+          });
+        });
         row.addEventListener("click", (e) => {
           if (row.classList.contains("current")) {
             const nameEl = row.querySelector(".browser-file-name");
@@ -458,11 +471,13 @@
     }
 
     async function loadWorkspaceFiles(preferredPath = currentPath) {
-      const [rawPayload, dataPayload, calculatorsPayload] = await Promise.all([
+      const [rawPayload, dataPayload, calculatorsPayload, configPayload] = await Promise.all([
         apiJson("/api/raw-files"),
         apiJson("/api/data-files"),
         apiJson("/api/calculators"),
+        apiJson("/api/config"),
       ]);
+      dbRoot = configPayload.db_root || "";
       rawFiles = rawPayload.files || [];
       generatedDataFiles = dataPayload.files || [];
       allCalculators = calculatorsPayload.calculators || [];
