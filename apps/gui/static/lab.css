@@ -1271,12 +1271,9 @@
       height: min(580px, calc(100vh - 80px));
       display: flex;
       flex-direction: column;
-      border: 1px solid var(--line-strong);
-      border-radius: calc(var(--radius) * 2);
-      background: var(--panel);
-      box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-        0 40px 100px rgba(0, 0, 0, 0.72);
+      background: transparent;
+      border: none;
+      box-shadow: none;
       overflow: hidden;
       min-height: 0;
     }
@@ -1436,7 +1433,7 @@
       align-items: center;
       gap: 10px;
       padding: 10px 16px 14px;
-      border-top: 1px solid var(--line);
+      border-top: none;
       flex-shrink: 0;
     }
     .ar-status {
