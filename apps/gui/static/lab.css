@@ -1213,3 +1213,244 @@
     .ctx-menu-item.danger:hover {
       background: color-mix(in srgb, #d63030 10%, transparent);
     }
+
+    /* ── Add Record button in nav ──────────────────────────────────────── */
+    .ar-nav-btn {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: color 0.12s, border-color 0.12s, background 0.12s;
+    }
+    .ar-nav-btn:hover {
+      color: var(--text);
+      border-color: var(--line-strong);
+      background: var(--button-hover);
+    }
+
+    /* ── Add Record overlay + dialog ──────────────────────────────────── */
+    .ar-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+    }
+    .ar-overlay[hidden] {
+      display: none;
+    }
+    .ar-dialog {
+      width: min(480px, calc(100vw - 32px));
+      min-height: min(420px, calc(100vh - 64px));
+      max-height: calc(100vh - 64px);
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line-strong);
+      border-radius: calc(var(--radius) * 2);
+      background: var(--panel);
+      color: var(--text);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+      overflow: hidden;
+    }
+    .ar-inner {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+    .ar-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px 0;
+      flex-shrink: 0;
+    }
+    .ar-tabs {
+      display: flex;
+      gap: 2px;
+      flex: 1;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 2px;
+      background: var(--input-bg);
+    }
+    .ar-tab {
+      flex: 1;
+      padding: 5px 8px;
+      border: none;
+      border-radius: calc(var(--radius) - 1px);
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+    }
+    .ar-tab.active {
+      background: var(--subtle-bg);
+      color: var(--accent);
+      box-shadow: inset 0 0 0 1px var(--line-strong);
+    }
+    .ar-close {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: none;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .ar-close:hover { color: var(--text); background: var(--button-hover); }
+    .ar-id-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px 0;
+      flex-shrink: 0;
+    }
+    .ar-id-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .ar-id-value {
+      font-size: 14px;
+      font-family: ui-monospace, "Cascadia Code", "Fira Code", monospace;
+      color: var(--text);
+    }
+    .ar-form-wrap {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 12px 16px;
+    }
+    .ar-form {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 8px 12px;
+      align-items: center;
+    }
+    .ar-field {
+      display: contents;
+    }
+    .ar-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      white-space: nowrap;
+      text-align: right;
+      padding-right: 4px;
+    }
+    .ar-req {
+      color: var(--warn);
+      font-weight: 700;
+    }
+    .ar-field.ar-field-full {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      grid-column: 1 / -1;
+    }
+    .ar-field.ar-field-full .ar-label {
+      text-align: left;
+      padding-right: 0;
+    }
+    .ar-textarea {
+      resize: vertical;
+      min-height: 64px;
+      line-height: 1.5;
+    }
+    .ar-input {
+      width: 100%;
+      min-width: 0;
+      padding: 5px 8px;
+      background: var(--input-bg);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.12s;
+    }
+    .ar-input:focus { border-color: var(--line-strong); }
+    .ar-select { appearance: auto; }
+    .ar-file-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .ar-file-btn {
+      padding: 5px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--button-bg);
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .ar-file-btn:hover { background: var(--button-hover); border-color: var(--line-strong); }
+    .ar-file-name {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .ar-footer {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px 14px;
+      border-top: 1px solid var(--line);
+      flex-shrink: 0;
+    }
+    .ar-status {
+      flex: 1;
+      font-size: 12px;
+      color: var(--muted);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .ar-status.ar-status-err { color: var(--warn); }
+    .ar-status.ar-status-ok { color: #57c775; }
+    .ar-submit {
+      padding: 6px 16px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: var(--button-bg);
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .ar-submit:hover:not(:disabled) { background: var(--button-hover); }
+    .ar-submit:disabled { opacity: 0.45; cursor: default; }
