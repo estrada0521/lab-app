@@ -1026,16 +1026,14 @@
     .memo-panel {
       display: flex;
       flex-direction: column;
-      gap: 5px;
       flex: 1;
       min-height: 0;
     }
-    .memo-panel label { font-size: 13px; font-weight: 500; color: var(--muted); }
-    .memo-actions {
+    .memo-input-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 0;
       display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-shrink: 0;
     }
     .memo-btn {
       padding: 3px 10px;
@@ -1048,18 +1046,39 @@
       cursor: pointer;
       transition: var(--transition);
     }
-    .memo-btn:hover:not(:disabled) { background: var(--hover-bg); }
+    .memo-btn:hover:not(:disabled) { background: var(--button-hover); }
     .memo-btn:disabled { opacity: 0.4; cursor: default; }
-    .memo-btn-secondary { background: transparent; }
-    .memo-status {
-      font-size: 11px;
-      color: var(--muted);
-      margin-left: 2px;
+    .memo-save-btn {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      z-index: 1;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--button-bg);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      color: var(--text);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      transition: all 0.15s ease;
     }
-    .memo-status.dirty { color: var(--warn, #f5a623); }
-    .memo-status.saved { color: var(--ok, #34a853); }
-    .memo-status.error { color: var(--danger, #d93025); }
-    .memo-status.info  { color: var(--accent); }
+    .memo-save-btn:hover:not(:disabled) {
+      background: var(--button-hover);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+    }
+    .memo-save-btn:disabled {
+      opacity: 0.4;
+      background: var(--input-bg);
+      border-color: var(--line);
+      box-shadow: none;
+      cursor: default;
+    }
     .memo-panel textarea, .memo-input {
       font-family: inherit;
       font-size: 14px;
