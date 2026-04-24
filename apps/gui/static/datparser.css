@@ -372,36 +372,38 @@
       overflow: auto;
       border: none;
       border-radius: 0;
-      padding: 0;
+      padding: 6px;
       background: transparent;
       font-size: 13px;
       display: flex;
       flex-direction: column;
-      gap: 0;
+      gap: 4px;
     }
-    .browser-list:focus { outline: 2px solid var(--selected); outline-offset: -2px; }
+    .browser-list:focus { outline: none; }
+    .browser-list:focus-visible { outline: 2px solid var(--selected); outline-offset: -2px; border-radius: 6px; }
     .browser-file {
-      width: 100%;
       text-align: left;
       display: flex;
       flex-direction: column;
       align-items: stretch;
       justify-content: flex-start;
       gap: 4px;
-      padding: 12px 10px;
-      border: none;
-      border-bottom: 1px solid var(--line);
-      border-radius: 0;
+      padding: 10px 10px;
+      border: 1px solid transparent;
+      border-radius: 6px;
       background: transparent;
       box-shadow: none;
+      transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;
+      cursor: pointer;
     }
     .browser-file:hover {
-      background: var(--row-hover);
-      transform: none;
+      background: var(--subtle-bg);
+      border-color: var(--line);
     }
     .browser-file.current {
       background: var(--browser-current-bg);
-      box-shadow: inset 2px 0 0 var(--browser-current-edge);
+      border-color: var(--browser-current-edge);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
     .browser-file-name {
       font-size: 13px;
