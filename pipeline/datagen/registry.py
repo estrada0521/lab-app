@@ -17,6 +17,7 @@ from .core import (
     FilterContext,
     build_source_context,
     data_output_paths,
+    metadata_kind,
     next_data_id,
     read_metadata,
     relative_text,
@@ -42,6 +43,8 @@ class CalculatorEntry:
     readme_path: Path
     transform_type: str
     output_columns: list[str]
+    # If non-empty, auto-select only when rawdata kind/tokens match one of these (casefold).
+    match_kinds: tuple[str, ...] = ()
 
 
 def _load_manifest(path: Path) -> dict[str, Any]:
@@ -65,6 +68,11 @@ def _calculator_entry(root: Path, manifest_path: Path) -> CalculatorEntry:
     transform_type = str(payload.get("transform_type") or "column").strip()
     output_columns = [str(c) for c in payload.get("output_columns", []) if str(c).strip()]
     required_parameters = [str(item).strip() for item in payload.get("required_parameters", []) if str(item).strip()]
+    match_raw = payload.get("match_kinds", [])
+    if isinstance(match_raw, list):
+        match_kinds = tuple(str(x).strip().lower() for x in match_raw if str(x).strip())
+    else:
+        match_kinds = ()
     return CalculatorEntry(
         id=calculator_id,
         display_name=display_name,
@@ -79,6 +87,7 @@ def _calculator_entry(root: Path, manifest_path: Path) -> CalculatorEntry:
         readme_path=(package_dir / readme_rel).resolve(),
         transform_type=transform_type,
         output_columns=output_columns,
+        match_kinds=match_kinds,
     )
 
 
@@ -188,6 +197,7 @@ def _entry_payload(root: Path, entry: CalculatorEntry, *, include_readme: bool =
         "readme_path": relative_text(entry.readme_path, root),
         "transform_type": entry.transform_type,
         "output_columns": entry.output_columns,
+        "match_kinds": list(entry.match_kinds),
     }
     if include_readme:
         payload["readme"] = _readme_text(entry)
@@ -196,6 +206,96 @@ def _entry_payload(root: Path, entry: CalculatorEntry, *, include_readme: bool =
 
 def list_calculators(root: Path, *, include_readme: bool = False) -> list[dict[str, Any]]:
     return [_entry_payload(root, entry, include_readme=include_readme) for entry in _calculator_entries(root)]
+
+
+def _context_kind_tokens(context: FilterContext) -> set[str]:
+    kinds: set[str] = set()
+    for value in (context.kind, metadata_kind(context.raw_meta)):
+        text = str(value or "").strip().lower()
+        if text:
+            kinds.add(text)
+    return kinds
+
+
+def _rawdata_calculator_hint_ids(context: FilterContext) -> list[str]:
+    order: list[str] = []
+    for key in (
+        str(context.calc_id or "").strip(),
+        str(context.raw_meta.get("calculator") or "").strip(),
+        str(context.raw_meta.get("preferred_calculator") or "").strip(),
+    ):
+        if key and key not in order:
+            order.append(key)
+    return order
+
+
+def _entry_kind_sort_key(entry: CalculatorEntry, tokens: set[str]) -> int:
+    """
+    Tighter match first when auto-picking. 0 = best, 1 = any-kind / universal, 9 = kind mismatch.
+    When tokens is empty, prefer specific calculators (0) over universal (1) using manifest order as tiebreak.
+    """
+    if not entry.match_kinds:
+        return 1
+    m = {str(x) for x in entry.match_kinds}
+    if not tokens:
+        return 0
+    if m & tokens:
+        return 0
+    return 9
+
+
+def _calculator_hint_rank(calc_id: str, priority: list[str]) -> int:
+    for index, name in enumerate(priority):
+        if name == calc_id:
+            return index
+    return 500
+
+
+def _select_calculator_assessment(
+    context: FilterContext,
+    assessments: list[tuple[CalculatorEntry, dict[str, Any]]],
+    explicit_id: str | None = None,
+    *,
+    require_ready: bool = False,
+) -> tuple[CalculatorEntry, dict[str, Any]]:
+    """Order: explicit id, then metadata hints, then best auto match (kind + manifest order)."""
+    if not assessments:
+        raise ValueError("no calculators are installed")
+    by_id = {e.id: (e, a) for e, a in assessments}
+    ex = str(explicit_id or "").strip()
+    if ex:
+        if ex not in by_id:
+            raise ValueError(f"calculator not available for this rawdata: {ex}")
+        return by_id[ex]
+    hint_priority = _rawdata_calculator_hint_ids(context)
+    for hint in hint_priority:
+        if hint not in by_id:
+            continue
+        if require_ready and not by_id[hint][1].get("ready"):
+            continue
+        return by_id[hint]
+    tokens = _context_kind_tokens(context)
+    if require_ready:
+        indexed: list[tuple[CalculatorEntry, dict[str, Any], int]] = [
+            (e, a, i) for i, (e, a) in enumerate(assessments) if a.get("ready")
+        ]
+        if not indexed:
+            raise ValueError("no calculator is ready for this rawdata")
+    else:
+        indexed = [(e, a, i) for i, (e, a) in enumerate(assessments)]
+    if tokens:
+        kind_ok = [t for t in indexed if _entry_kind_sort_key(t[0], tokens) < 9]
+        if kind_ok:
+            indexed = kind_ok
+    indexed.sort(
+        key=lambda t: (
+            0 if t[1].get("ready") else 1,
+            _calculator_hint_rank(t[0].id, hint_priority),
+            _entry_kind_sort_key(t[0], tokens),
+            t[2],
+        )
+    )
+    return indexed[0][0], indexed[0][1]
 
 
 def _required_param_names(entry: CalculatorEntry) -> list[str]:
@@ -290,17 +390,32 @@ def available_calculators(context: FilterContext, *, calculator_options: dict[st
     except (OSError, UnicodeDecodeError, csv.Error, ValueError) as exc:
         _log.debug("Cannot read source table for %s: %s", context.source_path, exc)
         return []
-    matches: list[CalculatorEntry] = []
-    for entry, assessment in assess_calculators(
+    assessments = assess_calculators(
         context,
         header,
         rows,
         source_name=context.filter_id,
         calculator_options=calculator_options,
-    ):
-        if assessment.get("ready"):
-            matches.append(entry)
-    return matches
+    )
+    indexed: list[tuple[CalculatorEntry, dict[str, Any], int]] = [
+        (e, a, i) for i, (e, a) in enumerate(assessments) if a.get("ready")
+    ]
+    if not indexed:
+        return []
+    hint_priority = _rawdata_calculator_hint_ids(context)
+    tokens = _context_kind_tokens(context)
+    if tokens:
+        kind_ok = [t for t in indexed if _entry_kind_sort_key(t[0], tokens) < 9]
+        if kind_ok:
+            indexed = kind_ok
+    indexed.sort(
+        key=lambda t: (
+            _calculator_hint_rank(t[0].id, hint_priority),
+            _entry_kind_sort_key(t[0], tokens),
+            t[2],
+        )
+    )
+    return [t[0] for t in indexed]
 
 
 def get_calculator(
@@ -344,13 +459,9 @@ def create_data_for_context(
             raise ValueError(f"calculator not available for this rawdata: {calculator_id}")
         calculator, selected_assessment = by_id[calculator_id]
     else:
-        calculator, selected_assessment = next(
-            ((entry, assessment) for entry, assessment in assessments if assessment.get("ready")),
-            (None, None),
+        calculator, selected_assessment = _select_calculator_assessment(
+            context, assessments, None, require_ready=True
         )
-        if calculator is None:
-            calculator = assessments[0][0]
-            selected_assessment = assessments[0][1]
     if not selected_assessment or not selected_assessment.get("ready"):
         missing = [*selected_assessment.get("missing_columns", []), *selected_assessment.get("missing_metadata", []), *selected_assessment.get("errors", [])]
         details = "; ".join(missing) if missing else "dependencies are missing"
@@ -420,13 +531,8 @@ def summarize_raw_source(
     assessments = assess_calculators(context, header, rows, source_name=source_path.stem, calculator_options=calculator_options)
     if not assessments:
         raise ValueError("no calculators are installed")
-
-    by_id = {entry.id: (entry, assessment) for entry, assessment in assessments}
-    if calculator_id and calculator_id not in by_id:
-        raise ValueError(f"calculator not available for this rawdata: {calculator_id}")
-    selected_entry, selected_assessment = by_id.get(calculator_id) if calculator_id else next(
-        ((entry, assessment) for entry, assessment in assessments if assessment.get("ready")),
-        assessments[0],
+    selected_entry, selected_assessment = _select_calculator_assessment(
+        context, assessments, calculator_id, require_ready=False
     )
     selected_analysis = selected_assessment.get("analysis") if isinstance(selected_assessment.get("analysis"), dict) else {}
 
