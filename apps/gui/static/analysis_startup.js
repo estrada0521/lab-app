@@ -146,19 +146,30 @@
     renderRightCellSection();
   }
 
-  // ── Right pane (cell assignment: same visual language as workspace Links) ───
+  function syncPreviewChrome() {
+    const titleEl = document.getElementById("asPreviewTitle");
+    const addBtn = document.getElementById("asAddBtn");
+    if (titleEl) {
+      const label = _focusDataId
+        ? ((_entriesIdx[_focusDataId]?.display_name) || _focusDataId)
+        : "—";
+      titleEl.textContent = label;
+      titleEl.title = _focusDataId ? String(_focusDataId) : "";
+    }
+    if (addBtn) addBtn.disabled = !_focusDataId || _selectedKeys.size === 0;
+  }
+
+  // ── Right pane: assigned data = one horizontal row; preview title + icon add ───
   function renderRightCellSection() {
     const listEl = document.getElementById("asCellLinksList");
     const wrapEl = document.getElementById("asCellAssignWrap");
-    const headingEl = document.getElementById("asCellHeading");
-    const addBtn = document.getElementById("asAddBtn");
-    if (!listEl || !wrapEl || !headingEl || !addBtn) return;
+    if (!listEl || !wrapEl) return;
 
     listEl.innerHTML = "";
 
     if (_selectedKeys.size === 0) {
       wrapEl.hidden = true;
-      addBtn.disabled = true;
+      syncPreviewChrome();
       return;
     }
 
@@ -170,62 +181,47 @@
 
     const seen = new Set(selCells.flatMap(cell => cell.data_ids));
 
-    if (seen.size === 0) {
-      headingEl.hidden = true;
-    } else {
-      headingEl.hidden = false;
-      for (const did of seen) {
-        const row = document.createElement("div");
-        row.className = "as-cell-link-row";
+    for (const did of seen) {
+      const item = document.createElement("span");
+      item.className = "as-cell-inline-item";
 
-        const linkBtn = document.createElement("button");
-        linkBtn.type = "button";
-        linkBtn.className = "catalog-record-link as-cell-link-btn" + (did === _focusDataId ? " is-active" : "");
-        linkBtn.title = did;
+      const pill = document.createElement("button");
+      pill.type = "button";
+      pill.className = "as-cell-pill" + (did === _focusDataId ? " is-active" : "");
+      pill.title = did;
+      pill.textContent = (_entriesIdx[did]?.display_name) || did;
 
-        const lab = document.createElement("span");
-        lab.className = "catalog-record-link-label";
-        lab.textContent = (_entriesIdx[did]?.display_name) || did;
-        linkBtn.appendChild(lab);
-        if (did !== lab.textContent) {
-          const sub = document.createElement("span");
-          sub.className = "catalog-record-link-sub";
-          sub.textContent = did;
-          linkBtn.appendChild(sub);
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "as-cell-pill-x";
+      removeBtn.setAttribute("aria-label", "Remove from cell");
+      removeBtn.title = "Remove";
+      removeBtn.textContent = "×";
+
+      pill.addEventListener("click", () => {
+        _focusDataId = did;
+        renderDataList();
+        renderRightCellSection();
+        loadPreview(did);
+      });
+
+      removeBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        for (const cell of selCells) {
+          cell.data_ids = cell.data_ids.filter(d => d !== did);
+          if (!cell.data_ids.length) { cell.rowspan = 1; cell.colspan = 1; }
         }
+        if (_focusDataId === did) _focusDataId = null;
+        renderGrid();
+        renderRightCellSection();
+      });
 
-        const removeBtn = document.createElement("button");
-        removeBtn.type = "button";
-        removeBtn.className = "as-cell-remove";
-        removeBtn.setAttribute("aria-label", "Remove from cell");
-        removeBtn.title = "Remove from cell";
-        removeBtn.textContent = "×";
-
-        linkBtn.addEventListener("click", () => {
-          _focusDataId = did;
-          renderDataList();
-          renderRightCellSection();
-          loadPreview(did);
-        });
-
-        removeBtn.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          for (const cell of selCells) {
-            cell.data_ids = cell.data_ids.filter(d => d !== did);
-            if (!cell.data_ids.length) { cell.rowspan = 1; cell.colspan = 1; }
-          }
-          if (_focusDataId === did) _focusDataId = null;
-          renderGrid();
-          renderRightCellSection();
-        });
-
-        row.appendChild(linkBtn);
-        row.appendChild(removeBtn);
-        listEl.appendChild(row);
-      }
+      item.appendChild(pill);
+      item.appendChild(removeBtn);
+      listEl.appendChild(item);
     }
 
-    addBtn.disabled = !_focusDataId || _selectedKeys.size === 0;
+    syncPreviewChrome();
   }
 
   // ── Add to cell ───────────────────────────────────────────────────────────
@@ -253,6 +249,15 @@
     if (kind) list = list.filter(e => (e.measurement || "") === kind);
     if (condition) list = list.filter(e => (e.dependance || "") === condition);
     if (sample) list = list.filter(e => (e.sample || "") === sample);
+
+    const idSet = new Set(list.map(e => e.id));
+    if (_focusDataId && !idSet.has(_focusDataId)) {
+      _focusDataId = null;
+      const graphEl = document.getElementById("asPreviewGraph");
+      const infoEl = document.getElementById("asPreviewInfo");
+      if (graphEl) graphEl.innerHTML = '<span class="as-hint">Click data from the list</span>';
+      if (infoEl) infoEl.innerHTML = "";
+    }
 
     container.innerHTML = "";
     for (const entry of list) {
@@ -282,6 +287,8 @@
       msg.textContent = "No data found";
       container.appendChild(msg);
     }
+
+    syncPreviewChrome();
   }
 
   function populateFilters() {
@@ -326,6 +333,7 @@
     infoEl.innerHTML = "";
 
     const entry = _entriesIdx[dataId];
+    syncPreviewChrome();
     const metaPath = `data/${dataId}/metadata.json`;
     let meta = {};
     try {

@@ -69,18 +69,23 @@
         <section class="side-panel is-active">
           <div class="as-right-scroll">
             <div id="asCellAssignWrap" class="as-cell-assign-wrap" hidden>
-              <div id="asCellHeading" class="catalog-link-label as-cell-heading" hidden>In selected cell</div>
-              <div id="asCellLinksList" class="link-section-list as-cell-links-list"></div>
+              <div class="as-cell-head-scroll">
+                <div id="asCellLinksList" class="as-cell-links-inline"></div>
+              </div>
               <div class="as-divider"></div>
             </div>
-            <div class="as-section-label">Data preview</div>
+            <div class="as-preview-head-row">
+              <div id="asPreviewTitle" class="as-preview-title" title="">—</div>
+              <button type="button" id="asAddBtn" class="as-icon-add-btn" title="Add to cell" disabled aria-label="Add to cell">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 3.5v9"/><path d="M3.5 8h9"/></svg>
+              </button>
+            </div>
             <div class="as-preview-graph" id="asPreviewGraph">
               <span class="as-hint">Click data from the list</span>
             </div>
-            <div class="as-add-row as-add-after-preview">
-              <button type="button" id="asAddBtn" class="as-btn-add" disabled>Add to cell</button>
+            <div class="as-preview-body-scroll">
+              <div class="data-info-grid as-preview-info" id="asPreviewInfo"></div>
             </div>
-            <div class="data-info-grid as-preview-info" id="asPreviewInfo"></div>
           </div>
         </section>
       </div>
