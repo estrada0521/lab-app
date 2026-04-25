@@ -164,6 +164,22 @@ body.calculators-page .app-link.active {
   min-width: 0;
 }
 
+.make-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.make-panel-label {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 36px;
+}
+
 .meta-block,
 .readme-panel,
 .calculator-card-section {
@@ -212,6 +228,24 @@ body.calculators-page .app-link.active {
   min-width: 0;
   overflow-wrap: anywhere;
   text-align: left;
+}
+
+.parameter-grid .param-option-full {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.parameter-grid .param-option-full .param-key {
+  flex: 0 0 auto;
+  min-width: 36px;
+  white-space: nowrap;
+}
+
+.parameter-grid .param-option-full select {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .data-column-picker {
@@ -1606,10 +1640,12 @@ body.catalog-page {
 
 /* ── Attachments section ─────────────────────────────────────────────────── */
 .attachments-section {
-  margin-top: 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+.attachments-section[hidden] {
+  display: none;
 }
 .attachments-label {
   font-size: 11px;

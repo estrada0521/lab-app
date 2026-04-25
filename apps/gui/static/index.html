@@ -161,8 +161,8 @@
 
       <div class="side-panels">
         <section class="side-panel data-generation-panel rawdata-only" data-panel="make">
-          <div class="field">
-            <label for="calculatorSelect">calculator</label>
+          <div class="make-panel-row">
+            <label class="make-panel-label" for="calculatorSelect">calc</label>
             <select id="calculatorSelect"></select>
           </div>
           <div class="calculator-status" id="calculatorStatus"></div>
@@ -176,7 +176,6 @@
             </button>
             <div class="parameter-grid" id="boundParameters"></div>
           </div>
-          <div class="output-columns-preview" id="outputColumnsPreview" hidden></div>
           <div class="generate-row">
             <label class="field compact generate-name-field" for="dataOutputName">
               <span>Display Name</span>
@@ -194,15 +193,12 @@
             <table>
               <thead>
                 <tr>
-                  <th class="col-pin-th"></th>
-                  <th>
-                    <div class="column-head">
-                      <button class="column-preview-btn" id="previewFilterBtn" type="button" title="Preview filters on graph">
-                        <span aria-hidden="true"></span>
-                      </button>
-                      <span>column</span>
-                    </div>
+                  <th class="col-pin-th">
+                    <button class="column-preview-btn" id="previewFilterBtn" type="button" title="Preview filters on graph">
+                      <span aria-hidden="true"></span>
+                    </button>
                   </th>
+                  <th><span>column</span></th>
                   <th class="col-range-th">
                     <div class="range-head">
                       <span>range</span>
@@ -223,6 +219,7 @@
             <div class="attachments-label">Uploads</div>
           </div>
           <div class="memo-panel">
+            <div class="memo-label">Memo</div>
             <div class="memo-input-wrap">
               <textarea class="memo-input" id="rawMemoInput" rows="5" placeholder="Quick notes…" disabled></textarea>
               <button class="memo-btn memo-save-btn" id="rawMemoSaveBtn" disabled title="Save (⌘S)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>

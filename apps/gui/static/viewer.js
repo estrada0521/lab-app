@@ -79,6 +79,7 @@
     let currentDataSummary = null;
     let allCalculators = [];
     let currentCalculatorOptions = {};
+    let _lastDataPanelPath = "";
     let selectedRetainedDataColumns = new Set();
     let sidePanelTab = "info";
     let _loadSeq = 0; // monotonic counter to detect stale async loads
@@ -597,23 +598,25 @@
       if (!calculatorOptions) return;
       const uiOptions = summary?.selected_calculator?.ui_options || [];
       currentCalculatorOptions = summary?.selected_calculator_options || currentCalculatorOptions || {};
+      if (calculatorOptionBlock) calculatorOptionBlock.hidden = uiOptions.length === 0;
       calculatorOptionBlock?.classList.toggle("is-empty", uiOptions.length === 0);
       if (!uiOptions.length) {
-        calculatorOptions.innerHTML = '<div class="param-key">—</div><div class="param-value">—</div>';
+        calculatorOptions.innerHTML = "";
         return;
       }
       calculatorOptions.innerHTML = uiOptions.map(option => {
         const id = String(option.id || "").trim();
         const label = String(option.label || id || "option");
         const choices = Array.isArray(option.choices) ? option.choices : [];
-        const current = String(currentCalculatorOptions[id] || option.default || "").trim();
-        const opts = ['<option value=""></option>', ...choices.map(choice => {
+        const defaultVal = String(choices[0]?.value || option.default || "").trim();
+        const current = String(currentCalculatorOptions[id] || option.default || defaultVal).trim();
+        const opts = choices.map(choice => {
           const value = String(choice.value || "").trim();
           const text = String(choice.label || value).trim();
           const selected = value === current ? ' selected' : '';
           return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(text)}</option>`;
-        })].join("");
-        return `<div class="param-key">${escapeHtml(label)}</div><div class="param-value"><select data-option-id="${escapeHtml(id)}">${opts}</select></div>`;
+        }).join("");
+        return `<div class="param-option-full"><div class="param-key">${escapeHtml(label)}</div><select data-option-id="${escapeHtml(id)}">${opts}</select></div>`;
       }).join("");
       for (const el of calculatorOptions.querySelectorAll("[data-option-id]")) {
         el.addEventListener("change", () => {
@@ -623,14 +626,28 @@
           }
         });
       }
+      // Capture rendered defaults and re-fetch if they differ from what the backend received
+      const sentOptions = summary?.selected_calculator_options || {};
+      const renderedOptions = collectCalculatorOptions();
+      currentCalculatorOptions = renderedOptions;
+      const hasNewDefaults = Object.entries(renderedOptions).some(
+        ([key, val]) => val && String(sentOptions[key] || "") !== val
+      );
+      if (hasNewDefaults && currentKind === "rawdata" && currentPath) {
+        renderSourceDataPanel(currentPath, dataOutputName.value.trim(), {autoPick: true}).catch(err => setStatus(err.message, true));
+      }
     }
 
     function calculatorIssues(summary) {
       const selected = summary?.selected_calculator || null;
       if (!selected) return [];
+      const hasMode = (selected.ui_options || []).some(opt => String(opt.id || "") === "mode");
+      const modeSelected = hasMode && Boolean(currentCalculatorOptions["mode"]);
+      const missingMeta = (selected.missing_metadata || summary?.missing_metadata || [])
+        .filter(item => !(modeSelected && /mode is required/i.test(item)));
       return [
         ...(selected.missing_columns || summary?.missing_columns || []).map(item => `missing column: ${item}`),
-        ...(selected.missing_metadata || summary?.missing_metadata || []).map(item => `missing metadata: ${item}`),
+        ...missingMeta.map(item => `missing metadata: ${item}`),
         ...(selected.errors || summary?.calculator_errors || []),
       ];
     }
@@ -709,15 +726,21 @@
       return secondaryAxisDefault(names, primary, fallback);
     }
 
-    async function renderSourceDataPanel(path, requestedName = "") {
+    async function renderSourceDataPanel(path, requestedName = "", {autoPick = false} = {}) {
+      const isFreshPath = path !== _lastDataPanelPath;
+      if (isFreshPath) {
+        currentCalculatorOptions = {};
+        _lastDataPanelPath = path;
+      }
       const query = new URLSearchParams({path});
       const name = requestedName.trim();
       if (name) query.set("display_name", name);
-      const calculatorOptionsValue = collectCalculatorOptions();
+      const calculatorOptionsValue = isFreshPath ? {} : collectCalculatorOptions();
       if (Object.keys(calculatorOptionsValue).length) {
         query.set("calculator_options", JSON.stringify(calculatorOptionsValue));
       }
-      const selectedCalculator = calculatorSelect.value;
+      // autoPick: let backend re-select the best calculator using current options (no fixed calc)
+      const selectedCalculator = (isFreshPath || autoPick) ? "" : calculatorSelect.value;
       if (selectedCalculator) {
         const selectedEntry = allCalculators.find(item => item.id === selectedCalculator);
         if (selectedEntry) {
@@ -737,7 +760,7 @@
       }
       currentDataSummary = summary;
       dataOutputName.value = summary.selected_display_name || summary.default_display_name || directDataDefaultName(path);
-      setCalculatorOptions(summary.available_calculators || [], summary.selected_calculator?.id || summary.calculator || "");
+      setCalculatorOptions(allCalculators, summary.selected_calculator?.id || summary.calculator || "");
       renderCalculatorOptionControls(summary);
       renderCalculatorStatus(summary);
       renderOutputColumnsPreview(summary);

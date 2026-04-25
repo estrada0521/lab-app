@@ -791,7 +791,7 @@
       min-height: 0;
       overflow: auto;
       border: 1px solid var(--line);
-      border-radius: 0;
+      border-radius: 6px;
       background: transparent;
       max-height: none;
     }
@@ -809,9 +809,36 @@
     .generate-name-field {
       flex: 1 1 auto;
       min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .generate-name-field span {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding-left: 2px;
     }
     .generate-name-field input {
       width: 100%;
+      min-width: 0;
+      padding: 4px 10px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      outline: none;
+      box-shadow: inset 0 0 16px rgba(255, 255, 255, 0.05);
+      transition: all 0.2s ease;
+    }
+    .generate-name-field input:focus {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: inset 0 0 24px rgba(255, 255, 255, 0.1), 0 0 12px rgba(255, 255, 255, 0.05);
     }
     .continuous-mode-label {
       flex: 0 0 auto;
@@ -937,12 +964,15 @@
       background: transparent;
     }
     th.col-pin-th {
-      width: 24px;
+      width: 28px;
+      padding: 4px 2px;
+      text-align: center;
+      vertical-align: middle;
     }
     td.col-pin {
-      width: 24px;
+      width: 28px;
       text-align: center;
-      padding: 6px 4px;
+      padding: 6px 2px;
     }
     .pin-icon {
       color: var(--pin-red);
@@ -958,6 +988,7 @@
       color: var(--muted);
       min-width: 0;
       overflow: hidden;
+      padding-left: 2px;
     }
     tbody tr.retained-source td.col-name {
       color: #ffffff;
@@ -981,6 +1012,7 @@
     th.col-range-th { width: 148px; }
     th:not(.col-pin-th):not(.col-range-th) {
       width: auto;
+      padding-left: 2px;
     }
     .column-head {
       display: flex;
@@ -1084,52 +1116,58 @@
       flex-direction: column;
       flex: 1;
       min-height: 0;
+      gap: 6px;
+    }
+    .memo-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding-left: 2px;
     }
     .memo-input-wrap {
       position: relative;
       flex: 1;
       min-height: 0;
       display: flex;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
-    .memo-btn {
-      padding: 3px 10px;
-      font-size: 12px;
-      font-family: inherit;
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      background: var(--subtle-bg);
-      color: var(--text);
-      cursor: pointer;
-      transition: var(--transition);
+    .memo-input-wrap:focus-within {
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), inset 0 0 16px rgba(255, 255, 255, 0.03);
     }
-    .memo-btn:hover:not(:disabled) { background: var(--button-hover); }
-    .memo-btn:disabled { opacity: 0.4; cursor: default; }
     .memo-save-btn {
       position: absolute;
       bottom: 8px;
       right: 8px;
       z-index: 1;
-      width: 30px;
-      height: 30px;
+      width: 32px;
+      height: 32px;
       padding: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #ffffff;
-      border: 1px solid #ffffff;
-      border-radius: var(--radius);
-      color: #000000;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: var(--text);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 0 12px rgba(255, 255, 255, 0.05);
       opacity: 1;
       transform: scale(1) translateY(0);
       visibility: visible;
-      transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      cursor: pointer;
+      transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
     }
     .memo-save-btn:hover:not(:disabled) {
-      background: #e6e6e6;
-      border-color: #e6e6e6;
-      color: #000000;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+      background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 0 16px rgba(255, 255, 255, 0.1);
     }
     .memo-save-btn:disabled {
       opacity: 0;
@@ -1143,18 +1181,14 @@
       font-size: 14px;
       flex: 1;
       resize: none;
-      min-height: 60px;
-      padding: 8px 10px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--input-bg);
+      min-height: 80px;
+      padding: 12px 14px;
+      border: none;
+      border-radius: 0;
+      background: transparent;
       color: var(--text);
-      transition: var(--transition);
-    }
-    .memo-panel textarea:focus, .memo-input:focus {
       outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 2px var(--selected);
+      line-height: 1.5;
     }
 
     body:not(.selected-rawdata) .rawdata-only { display: none; }
@@ -1238,7 +1272,7 @@
       gap: 4px;
     }
     [hidden] {
-      display: none;
+      display: none !important;
     }
 
     /* ── Context menu ── */
