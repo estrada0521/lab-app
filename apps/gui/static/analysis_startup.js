@@ -152,7 +152,7 @@
     const wrapEl = document.getElementById("asCellAssignWrap");
     const headingEl = document.getElementById("asCellHeading");
     const addBtn = document.getElementById("asAddBtn");
-    if (!listEl || !wrapEl || !headingEl) return;
+    if (!listEl || !wrapEl || !headingEl || !addBtn) return;
 
     listEl.innerHTML = "";
 
