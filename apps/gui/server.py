@@ -50,6 +50,8 @@ STATIC_TYPES = {
     "analysis.js": "application/javascript; charset=utf-8",
     "build.js": "application/javascript; charset=utf-8",
     "add_record.js": "application/javascript; charset=utf-8",
+    "drop_upload.js": "application/javascript; charset=utf-8",
+    "datparser.js": "application/javascript; charset=utf-8",
 }
 STATIC_VERSION = str(
     max(path.stat().st_mtime_ns for path in STATIC_DIR.rglob("*") if path.is_file())
@@ -144,6 +146,23 @@ def _next_available_id(directory: Path) -> str:
 
 
 _ALLOWED_RECORD_KINDS = {"rawdata", "sample", "exp"}
+
+_ATTACHMENT_KIND_DIR: dict[str, str] = {
+    "rawdata": "rawdata",
+    "data": "data",
+    "sample": "samples",
+    "exp": "exp",
+    "analysis": "analysis",
+    "build": "build",
+    "calc": "calculators",
+}
+
+
+def _attachment_dir(root: Path, kind: str, record_id: str) -> Path | None:
+    dir_name = _ATTACHMENT_KIND_DIR.get(kind)
+    if not dir_name or not record_id or ".." in record_id or "/" in record_id:
+        return None
+    return root / dir_name / record_id / "uploaded"
 _ALLOWED_FILE_EXTS: dict[str, set[str]] = {
     "rawdata:payload": {".dat", ".csv", ".txt", ".tsv"},
     "sample:image": {".jpg", ".jpeg", ".png", ".webp", ".gif"},
@@ -547,6 +566,18 @@ class DatParserHandler(BaseHTTPRequestHandler):
                     self.send_json(json.load(f))
             elif parsed.path == "/api/config":
                 self.send_json({"db_root": str(self.server.db_root)})
+            elif parsed.path == "/api/attachments":
+                query = parse_qs(parsed.query)
+                kind = query.get("kind", [""])[0].strip().lower()
+                record_id = query.get("id", [""])[0].strip()
+                adir = _attachment_dir(self.server.db_root, kind, record_id)
+                files: list[dict[str, object]] = []
+                if adir and adir.exists():
+                    for f in sorted(adir.iterdir()):
+                        if f.is_file():
+                            rel = str(f.relative_to(self.server.db_root))
+                            files.append({"name": f.name, "path": rel, "size": f.stat().st_size})
+                self.send_json({"files": files})
             elif parsed.path == "/api/calculators":
                 self.send_json({"calculators": data_gui.list_calculators(self.server.db_root, include_readme=True)})
             elif parsed.path == "/api/table":
@@ -653,6 +684,25 @@ class DatParserHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/shutdown":
                 self.send_json({"stopping": True})
                 threading.Thread(target=self.server.shutdown, daemon=True).start()
+                return
+            if parsed.path == "/api/upload-attachment":
+                query = parse_qs(parsed.query)
+                kind = query.get("kind", [""])[0].strip().lower()
+                record_id = query.get("id", [""])[0].strip()
+                filename = query.get("filename", [""])[0].strip()
+                if not filename or ".." in filename or "/" in filename:
+                    self.send_json({"error": "invalid filename"}, HTTPStatus.BAD_REQUEST)
+                    return
+                adir = _attachment_dir(self.server.db_root, kind, record_id)
+                if adir is None:
+                    self.send_json({"error": "invalid kind or id"}, HTTPStatus.BAD_REQUEST)
+                    return
+                length = int(self.headers.get("Content-Length", "0"))
+                file_bytes = self.rfile.read(length) if length else b""
+                adir.mkdir(parents=True, exist_ok=True)
+                (adir / filename).write_bytes(file_bytes)
+                rel = str((adir / filename).relative_to(self.server.db_root))
+                self.send_json({"ok": True, "path": rel})
                 return
             if parsed.path == "/api/upload-record-file":
                 query = parse_qs(parsed.query)

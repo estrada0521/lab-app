@@ -165,6 +165,8 @@ async function selectRecord(id) {
   renderInfoAsJson(recordInfo, payload.metadata || {}, {keyClass: "catalog-key", valueClass: "catalog-value"});
   await renderRepoJsonPanel(recordJson, payload.metadata_path);
   await memoPanel.load({kind: memoKind(), id});
+  const attachKind = pageKind === "samples" ? "sample" : "exp";
+  loadAndRenderAttachments(document.getElementById("attachmentsSection"), attachKind, id);
 
   renderLinkBlock("rawdataLinkBlock", recordRawdata, (payload.rawdata || []).map(item => ({
     href: `/?path=${encodeURIComponent(item.path)}`,
@@ -364,3 +366,14 @@ initPaneResize({
   right: {min: 160, max: 560, reserve: 440},
 });
 loadRecords().catch(err => setStatus(err.message, true));
+
+initDropUpload({
+  getTarget: () => {
+    if (!currentId) return null;
+    const kind = pageKind === "samples" ? "sample" : "exp";
+    return {kind, id: currentId};
+  },
+  onUploaded: (target) => {
+    loadAndRenderAttachments(document.getElementById("attachmentsSection"), target.kind, target.id);
+  },
+});

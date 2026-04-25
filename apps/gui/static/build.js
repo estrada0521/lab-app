@@ -166,6 +166,7 @@ async function selectBuild(id) {
   setStatus("Loading…");
   const detail = await apiJson(`/api/build?id=${encodeURIComponent(id)}`);
   renderDetail(detail);
+  loadAndRenderAttachments(document.getElementById("attachmentsSection"), "build", id);
   setStatus("");
 }
 
@@ -283,3 +284,10 @@ initPaneResize({
 buildSidePanelSelect?.addEventListener("change", () => setSidePanel(buildSidePanelSelect.value));
 setSidePanel("info");
 loadBuilds().catch(err => setStatus(err.message, true));
+
+initDropUpload({
+  getTarget: () => currentId ? {kind: "build", id: currentId} : null,
+  onUploaded: (target) => {
+    loadAndRenderAttachments(document.getElementById("attachmentsSection"), target.kind, target.id);
+  },
+});

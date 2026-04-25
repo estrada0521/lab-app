@@ -166,6 +166,7 @@ async function selectProject(id) {
   setStatus("Loading…");
   const detail = await apiJson(`/api/analysis?id=${encodeURIComponent(id)}`);
   renderDetail(detail);
+  loadAndRenderAttachments(document.getElementById("attachmentsSection"), "analysis", id);
   setStatus("");
 }
 
@@ -266,3 +267,10 @@ initPaneResize({
 analysisSidePanelSelect?.addEventListener("change", () => setSidePanel(analysisSidePanelSelect.value));
 setSidePanel("info");
 loadAnalyses().catch(err => setStatus(err.message, true));
+
+initDropUpload({
+  getTarget: () => currentId ? {kind: "analysis", id: currentId} : null,
+  onUploaded: (target) => {
+    loadAndRenderAttachments(document.getElementById("attachmentsSection"), target.kind, target.id);
+  },
+});

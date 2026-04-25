@@ -114,6 +114,7 @@ function selectCalculator(id) {
     {href: repoFileLink(calculator.manifest_path), label: "Manifest", sub: calculator.manifest_path},
     {href: repoFileLink(calculator.handler_path), label: "Handler", sub: calculator.handler_path},
   ]);
+  loadAndRenderAttachments(document.getElementById("attachmentsSection"), "calc", calculator.id);
 }
 
 function renderList(items) {
@@ -232,3 +233,10 @@ initPaneResize({
   right: {min: 160, max: 560, reserve: 440},
 });
 loadCalculators().catch(err => setStatus(err.message, true));
+
+initDropUpload({
+  getTarget: () => selectedCalculatorId ? {kind: "calc", id: selectedCalculatorId} : null,
+  onUploaded: (target) => {
+    loadAndRenderAttachments(document.getElementById("attachmentsSection"), target.kind, target.id);
+  },
+});

@@ -903,6 +903,10 @@
       buildColumnTable();
       if (currentKind === "rawdata" || currentKind === "data") rawMemoPanel.load(path, currentKind === "data" ? "data" : "direct").catch(() => {});
       else rawMemoPanel.reset("");
+      if (currentKind === "rawdata" || currentKind === "data") {
+        const recordId = path.split("/")[1] || "";
+        loadAndRenderAttachments(document.getElementById("attachmentsSection"), currentKind, recordId);
+      }
       try {
         if (currentKind === "rawdata") {
           renderRawInfoPanel(path);
@@ -2144,3 +2148,13 @@
     setPlotStyle(plotAppearance.style);
     applyPlotTheme(localStorage.getItem("lab-plot-theme") || localStorage.getItem("lab-plot-bg") || "light");
     loadWorkspaceFiles(new URLSearchParams(window.location.search).get("path") || "").catch(err => setStatus(err.message, true));
+    initDropUpload({
+      getTarget: () => {
+        if (!currentPath || (currentKind !== "rawdata" && currentKind !== "data")) return null;
+        const recordId = currentPath.split("/")[1] || "";
+        return recordId ? {kind: currentKind, id: recordId} : null;
+      },
+      onUploaded: (target) => {
+        loadAndRenderAttachments(document.getElementById("attachmentsSection"), target.kind, target.id);
+      },
+    });

@@ -74,6 +74,7 @@
       </div>
 
       <div class="toolbar" role="toolbar" aria-label="Plot toolbar">
+        <div class="toolbar-inner">
         <div class="tool-group">
           <button class="tool-btn" id="panBtn" title="Pan (drag to move)">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1 V8"/><path d="M8 15 V8"/><path d="M1 8 H15"/><path d="M6 3 L8 1 L10 3"/><path d="M6 13 L8 15 L10 13"/><path d="M3 6 L1 8 L3 10"/><path d="M13 6 L15 8 L13 10"/></svg>
@@ -136,6 +137,7 @@
           <button class="tool-btn" id="savePlotPdfBtn" type="button" title="Export PDF">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5 H9.5 L12.5 5.5 V13.5 H4 Z"/><path d="M9.5 2.5 V5.5 H12.5"/><path d="M5.2 11.2 H10.8"/><path d="M5.2 8.8 H10.8"/></svg>
           </button>
+        </div>
         </div>
       </div>
 
@@ -217,6 +219,9 @@
         <section class="side-panel data-info-panel is-active" data-panel="info">
           <div class="data-info-grid rawdata-only" id="rawInfoGrid"></div>
           <div class="data-info-grid data-only" id="dataInfoGrid"></div>
+          <div class="attachments-section" id="attachmentsSection" hidden>
+            <div class="attachments-label">Uploads</div>
+          </div>
           <div class="memo-panel">
             <div class="memo-input-wrap">
               <textarea class="memo-input" id="rawMemoInput" rows="5" placeholder="Quick notes…" disabled></textarea>
@@ -250,6 +255,7 @@
   <script src="/static/info/common.js?v=__STATIC_VERSION__"></script>
   <script src="/static/info/rawdata.js?v=__STATIC_VERSION__"></script>
   <script src="/static/info/data.js?v=__STATIC_VERSION__"></script>
+  <script src="/static/drop_upload.js?v=__STATIC_VERSION__"></script>
   <script src="/static/viewer.js?v=__STATIC_VERSION__"></script>
 </body>
 </html>

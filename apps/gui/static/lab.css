@@ -679,25 +679,37 @@
     .toolbar {
       display: flex;
       align-items: center;
-      gap: 4px;
       padding: 4px 8px;
       margin-bottom: 16px;
       align-self: center;
+      max-width: 100%;
+      min-width: 0;
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 12px;
       user-select: none;
       position: relative;
-      overflow: visible;
+      overflow: hidden;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
-    .toolbar .tool-group { display: flex; gap: 4px; }
+    .toolbar-inner {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      overflow-x: auto;
+      overflow-y: clip;
+      scrollbar-width: none;
+      touch-action: pan-x;
+    }
+    .toolbar-inner::-webkit-scrollbar { display: none; }
+    .toolbar .tool-group { display: flex; gap: 4px; flex-shrink: 0; }
     .toolbar .sep {
       width: 1px;
       height: 16px;
       align-self: center;
       background: rgba(255, 255, 255, 0.1);
       margin: 0 4px;
+      flex-shrink: 0;
     }
     .tool-btn {
       width: 32px;
@@ -711,7 +723,9 @@
       background: transparent;
       color: var(--muted);
       cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.19, 1, 0.22, 1);
+      transition: background 0.2s cubic-bezier(0.19, 1, 0.22, 1), border-color 0.2s cubic-bezier(0.19, 1, 0.22, 1), color 0.2s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.2s cubic-bezier(0.19, 1, 0.22, 1);
+      -webkit-appearance: none;
+      appearance: none;
     }
     .tool-btn:hover:not(:disabled) {
       background: rgba(255, 255, 255, 0.04);

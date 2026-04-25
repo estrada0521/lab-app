@@ -703,6 +703,12 @@ body.catalog-page {
 .catalog-page .catalog-list-item,
 .browser-file {
   transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.catalog-page .catalog-list-item:active,
+.browser-file:active {
+  transform: none;
 }
 
 .catalog-page .catalog-list-item:hover,
@@ -1530,4 +1536,114 @@ body.catalog-page {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* ── Drop upload overlay ─────────────────────────────────────────────────── */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.drop-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+.drop-overlay-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 56px;
+  border: 2px dashed rgba(255, 255, 255, 0.4);
+  border-radius: 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+.drop-overlay-label {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.drop-overlay-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: ui-monospace, "Cascadia Code", monospace;
+}
+
+/* ── Drop toast ──────────────────────────────────────────────────────────── */
+.drop-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  z-index: 9950;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--panel, #1e1e1e);
+  border: 1px solid var(--line, rgba(255,255,255,0.1));
+  color: var(--text, #e8eaed);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.drop-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.drop-toast.ok { color: #57c775; }
+.drop-toast.error { color: var(--warn, #f28b82); }
+
+/* ── Attachments section ─────────────────────────────────────────────────── */
+.attachments-section {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.attachments-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0 0 4px;
+}
+.attachment-item {
+  display: flex;
+}
+.attachment-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+  text-decoration: none;
+  padding: 3px 4px;
+  border-radius: 4px;
+  min-width: 0;
+}
+.attachment-link:hover { background: var(--row-hover); }
+.attachment-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.attachment-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 2px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
