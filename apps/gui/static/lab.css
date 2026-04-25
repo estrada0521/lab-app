@@ -497,7 +497,11 @@
       pointer-events: auto;
     }
     .copy-path-btn:hover { color: var(--text); }
-    .copy-path-btn.success { color: #34c759; }
+    .browser-file .copy-path-btn.success {
+      opacity: 1;
+      pointer-events: auto;
+      color: #34c759;
+    }
     .copy-path-btn svg { display: block; }
     .tree-group {
       display: flex;

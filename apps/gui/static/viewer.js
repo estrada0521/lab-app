@@ -358,7 +358,7 @@
           const absPath = dbRoot ? dbRoot.replace(/\/$/, "") + "/" + item.path.replace(/^\//, "") : item.path;
           navigator.clipboard.writeText(absPath).then(() => {
             copyBtn.classList.add("success");
-            setTimeout(() => copyBtn.classList.remove("success"), 1200);
+            setTimeout(() => copyBtn.classList.remove("success"), 1000);
           });
         });
         row.addEventListener("click", (e) => {
