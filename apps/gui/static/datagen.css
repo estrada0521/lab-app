@@ -745,15 +745,17 @@ body.catalog-page {
   transform: none;
 }
 
-.catalog-page .catalog-list-item:hover,
-.browser-file:hover {
+.catalog-page .catalog-list-item:hover:not(.current),
+.browser-file:hover:not(.current) {
   background: var(--theme-list-hover-bg);
   border-color: transparent;
   border-radius: 10px;
 }
 
 .catalog-page .catalog-list-item.current,
-.browser-file.current {
+.browser-file.current,
+.catalog-page .catalog-list-item.current:hover,
+.browser-file.current:hover {
   background: var(--browser-current-bg);
   border-color: transparent;
   border-radius: 10px;

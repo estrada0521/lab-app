@@ -306,8 +306,27 @@
       }
     }
 
+    const BROWSER_LIST_SCROLL_PAD = 4;
+    /**
+     * Scroll only `#browserTree`. Rebuilds reset `scrollTop` to 0; we restore a saved value first, then
+     * if the current row is still not visible, nudge by aligning its top to the list (never by minimal
+     * "show bottom" scroll, which pins the row to the bottom of the list).
+     */
+    function scrollBrowserCurrentRowIntoList() {
+      if (!browserTree) return;
+      const current = browserTree.querySelector(".browser-file.current");
+      if (!current) return;
+      const list = browserTree;
+      const pad = BROWSER_LIST_SCROLL_PAD;
+      const cr = current.getBoundingClientRect();
+      const lr = list.getBoundingClientRect();
+      if (cr.top >= lr.top + pad && cr.bottom <= lr.bottom - pad) return;
+      list.scrollTop += cr.top - lr.top - pad;
+    }
+
     function renderBrowserList() {
       if (!browserTree) return;
+      const savedListScroll = browserTree.scrollTop;
       const files = browserFilteredFiles().slice().sort(browserSort);
       browserTree.innerHTML = "";
       if (!files.length) {
@@ -381,8 +400,30 @@
         }
         browserTree.appendChild(row);
       }
-      const current = browserTree.querySelector(".browser-file.current");
-      if (current) current.scrollIntoView({block: "nearest"});
+      {
+        const maxT = Math.max(0, browserTree.scrollHeight - browserTree.clientHeight);
+        browserTree.scrollTop = Math.min(Math.max(0, savedListScroll), maxT);
+      }
+      scrollBrowserCurrentRowIntoList();
+    }
+
+    /** Update selection highlight only (no list rebuild). Falls back to full render if DOM is empty or has no row for `currentPath`. */
+    function updateBrowserListSelectionOnly() {
+      if (!browserTree) return;
+      const rows = browserTree.querySelectorAll(".browser-file");
+      if (!rows.length) {
+        renderBrowserList();
+        return;
+      }
+      let matched = false;
+      for (const row of rows) {
+        const isCurrent = row.dataset.path === currentPath;
+        if (isCurrent) matched = true;
+        row.classList.toggle("current", isCurrent);
+      }
+      if (currentPath && !matched) {
+        renderBrowserList();
+      }
     }
 
     function startBrowserRename(row, item, oldId, nameEl, oldLabel) {
@@ -715,15 +756,17 @@
       return pathStem(path).replace(/-filtered$/i, "");
     }
 
+    /** If `fallback` (suggested from server / default_x|y in metadata) exists in the file, use it; else keep `previous` when still valid. */
     function preferredAxisSelection(names, previous, fallback) {
-      if (previous && names.includes(previous)) return previous;
       if (fallback && names.includes(fallback)) return fallback;
+      if (previous && names.includes(previous)) return previous;
       return names[0] || "";
     }
 
     function preferredSecondaryAxisSelection(names, primary, previous, fallback) {
+      if (fallback && fallback !== primary && names.includes(fallback)) return fallback;
       if (previous && previous !== primary && names.includes(previous)) return previous;
-      return secondaryAxisDefault(names, primary, fallback);
+      return secondaryAxisDefault(names, primary, "");
     }
 
     async function renderSourceDataPanel(path, requestedName = "", {autoPick = false} = {}) {
@@ -897,6 +940,11 @@
     }
 
     async function loadTable(path, options = {}) {
+      const nextKind = options.kind || inferKind(path);
+      if (path === currentPath && nextKind === currentKind) {
+        return;
+      }
+      const previousBrowserTarget = browserTarget;
       const seq = ++_loadSeq;
       const previousAxes = {
         x: xAxis.value,
@@ -905,14 +953,18 @@
         dual: Boolean(dualPlotInput.checked),
       };
       currentPath = path;
-      currentKind = options.kind || inferKind(path);
+      currentKind = nextKind;
       setWorkspaceHeader(path);
       setBrowserTarget(currentKind, {refresh: false});
       currentDataSummary = null;
       selectedRetainedDataColumns = new Set();
       updateSelectedKindClass();
       setSidePanelTab(currentKind === "rawdata" ? "info" : currentKind === "data" ? "info" : "");
-      renderBrowserList();
+      if (previousBrowserTarget !== browserTarget) {
+        renderBrowserList();
+      } else {
+        updateBrowserListSelectionOnly();
+      }
       setStatus("Loading " + path);
       const payload = await apiJson("/api/table?path=" + encodeURIComponent(path));
       if (_loadSeq !== seq) return;
@@ -2157,7 +2209,7 @@
     });
 
     setMode("zoom");
-    setSidePanelTab("make");
+    setSidePanelTab("info");
     setBrowserTarget(browserTarget, {refresh: false, selectFirstIfCurrentHidden: false});
     updateDualPlotControls();
     initPaneResize({
