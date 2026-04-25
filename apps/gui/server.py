@@ -48,6 +48,8 @@ STATIC_TYPES = {
     "raw_memo.js": "application/javascript; charset=utf-8",
     "markdown_render.js": "application/javascript; charset=utf-8",
     "analysis.js": "application/javascript; charset=utf-8",
+    "analysis_startup.html": "text/html; charset=utf-8",
+    "analysis_startup.js": "application/javascript; charset=utf-8",
     "build.js": "application/javascript; charset=utf-8",
     "add_record.js": "application/javascript; charset=utf-8",
     "drop_upload.js": "application/javascript; charset=utf-8",
@@ -479,6 +481,8 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 self.send_html_template("analysis.html")
             elif parsed.path in {"/build", "/build/"}:
                 self.send_html_template("build.html")
+            elif parsed.path in {"/analysis-startup", "/analysis-startup/"}:
+                self.send_html_template("analysis_startup.html")
             elif parsed.path.startswith("/static/"):
                 self.send_static(parsed.path)
             elif parsed.path == "/api/raw-files":
@@ -791,6 +795,37 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 result = _delete_entity(self.server.db_root, kind, entity_id)
                 status = HTTPStatus.OK if not result.get("error") else HTTPStatus.BAD_REQUEST
                 self.send_json(result, status)
+            elif parsed.path == "/api/analysis-start":
+                display_name = str(payload.get("display_name", "")).strip()
+                grid_data = payload.get("grid", {})
+                if not isinstance(grid_data, dict):
+                    self.send_json({"error": "grid required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                rows = int(grid_data.get("rows", 2))
+                cols = int(grid_data.get("cols", 2))
+                cells = [c for c in grid_data.get("cells", []) if isinstance(c, dict)]
+                analysis_dir = self.server.db_root / "analysis"
+                analysis_dir.mkdir(exist_ok=True)
+                new_id = _next_available_id(analysis_dir)
+                record_dir = analysis_dir / new_id
+                record_dir.mkdir(parents=True, exist_ok=False)
+                meta = {
+                    "id": new_id,
+                    "display_name": display_name or new_id,
+                    "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
+                    "grid": {"rows": rows, "cols": cols, "cells": cells},
+                }
+                (record_dir / "metadata.json").write_text(
+                    json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+                )
+                plot_path = record_dir / "plot.py"
+                plot_path.write_text(_generate_plot_template(), encoding="utf-8")
+                subprocess.Popen([sys.executable, str(plot_path)], cwd=str(record_dir))
+                try:
+                    subprocess.Popen(["open", "-a", "Visual Studio Code", str(plot_path)])
+                except Exception:
+                    pass
+                self.send_json({"id": new_id, "path": f"analysis/{new_id}"})
             elif parsed.path == "/api/open-external":
                 # Open a file in Antigravity (or another app via "app" param)
                 rel_path = str(payload.get("path", "")).strip()
@@ -810,6 +845,42 @@ class DatParserHandler(BaseHTTPRequestHandler):
             self.send_json({"error": str(exc)}, HTTPStatus.NOT_FOUND)
         except Exception as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+
+
+def _generate_plot_template() -> str:
+    return (
+        "import json\n"
+        "import pandas as pd\n"
+        "import matplotlib.pyplot as plt\n"
+        "from matplotlib.gridspec import GridSpec\n"
+        "from pathlib import Path\n"
+        "\n"
+        "HERE = Path(__file__).parent\n"
+        "DB_ROOT = HERE.parents[1]\n"
+        "meta = json.loads((HERE / \"metadata.json\").read_text(encoding=\"utf-8\"))\n"
+        "\n"
+        "grid = meta[\"grid\"]\n"
+        "fig = plt.figure(figsize=(12, 8))\n"
+        "gs = GridSpec(grid[\"rows\"], grid[\"cols\"], figure=fig)\n"
+        "\n"
+        "for cell in grid[\"cells\"]:\n"
+        "    row, col = cell[\"row\"], cell[\"col\"]\n"
+        "    rs = cell.get(\"rowspan\", 1)\n"
+        "    cs = cell.get(\"colspan\", 1)\n"
+        "    ax = fig.add_subplot(gs[row:row + rs, col:col + cs])\n"
+        "    for data_id in cell.get(\"data_ids\", []):\n"
+        "        csv_path = DB_ROOT / \"data\" / data_id / f\"{data_id}.csv\"\n"
+        "        df = pd.read_csv(csv_path, comment=\"#\")\n"
+        "        ax.plot(df.iloc[:, 0], df.iloc[:, 1], label=data_id)\n"
+        "    ax.legend()\n"
+        "    title = \" / \".join(cell.get(\"data_ids\", [])) or f\"({row + 1},{col + 1})\"\n"
+        "    ax.set_title(title)\n"
+        "\n"
+        "plt.tight_layout()\n"
+        "out = HERE / \"output.png\"\n"
+        "plt.savefig(out, dpi=150, bbox_inches=\"tight\")\n"
+        "print(f\"Saved: {out}\")\n"
+    )
 
 
 def _update_json_file(path: Path, updater) -> bool:
