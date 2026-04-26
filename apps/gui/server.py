@@ -4,7 +4,6 @@ import argparse
 import datetime
 import json
 import logging
-import shutil
 import subprocess
 import sys
 import threading
@@ -21,7 +20,9 @@ from . import core
 from pipeline.datagen import core as data_core
 from pipeline.datagen import gui as data_gui
 
+from . import analysis_plot
 from . import catalog
+from . import entity_ops
 
 
 STATIC_DIR = Path(__file__).with_name("static")
@@ -763,7 +764,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 new_id = str(payload.get("new_id", "")).strip()
                 new_name = str(payload.get("new_name", "")).strip()
                 if kind in {"rawdata", "data", "sample", "exp", "analysis", "build", "calc"} and old_id and new_name:
-                    result = _update_record_display_name(self.server.db_root, kind, old_id, new_name)
+                    result = entity_ops.update_record_display_name(self.server.db_root, kind, old_id, new_name)
                     status = HTTPStatus.OK if not result.get("error") else HTTPStatus.BAD_REQUEST
                     self.send_json(result, status)
                     return
@@ -776,14 +777,14 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 if any(c in new_id for c in ("/", "\\", "\0")) or new_id in (".", ".."):
                     self.send_json({"error": "invalid new_id"}, HTTPStatus.BAD_REQUEST)
                     return
-                result = _cascade_rename(self.server.db_root, kind, old_id, new_id)
+                result = entity_ops.cascade_rename(self.server.db_root, kind, old_id, new_id)
                 self.send_json(result)
             elif parsed.path == "/api/delete-data":
                 data_id = str(payload.get("id", "")).strip()
                 if not data_id or any(c in data_id for c in ("/", "\\", "\0")) or data_id in (".", ".."):
                     self.send_json({"error": "invalid id"}, HTTPStatus.BAD_REQUEST)
                     return
-                result = _delete_entity(self.server.db_root, "data", data_id)
+                result = entity_ops.delete_entity(self.server.db_root, "data", data_id)
                 status = HTTPStatus.OK if not result.get("error") else HTTPStatus.BAD_REQUEST
                 self.send_json(result, status)
             elif parsed.path == "/api/delete-entity":
@@ -792,7 +793,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 if not kind or not entity_id:
                     self.send_json({"error": "kind and id required"}, HTTPStatus.BAD_REQUEST)
                     return
-                result = _delete_entity(self.server.db_root, kind, entity_id)
+                result = entity_ops.delete_entity(self.server.db_root, kind, entity_id)
                 status = HTTPStatus.OK if not result.get("error") else HTTPStatus.BAD_REQUEST
                 self.send_json(result, status)
             elif parsed.path == "/api/analysis-start":
@@ -804,7 +805,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 rows = int(grid_data.get("rows", 2))
                 cols = int(grid_data.get("cols", 2))
                 cells = [c for c in grid_data.get("cells", []) if isinstance(c, dict)]
-                grid_err = _validate_analysis_grid_cells(self.server.db_root, cells)
+                grid_err = analysis_plot.validate_analysis_grid_cells(self.server.db_root, cells)
                 if grid_err:
                     self.send_json({"error": grid_err}, HTTPStatus.BAD_REQUEST)
                     return
@@ -813,7 +814,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 new_id = _next_available_id(analysis_dir)
                 record_dir = analysis_dir / new_id
                 record_dir.mkdir(parents=True, exist_ok=False)
-                source_data = _analysis_source_data_ids_from_cells(cells)
+                source_data = analysis_plot.collect_source_data_ids_from_cells(cells)
                 meta = {
                     "display_name": display_name or new_id,
                     "created_at": datetime.datetime.now().isoformat(timespec="milliseconds"),
@@ -823,7 +824,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                     json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
                 )
                 plot_path = record_dir / "plot.py"
-                plot_path.write_text(_generate_plot_py(self.server.db_root, rows, cols, cells), encoding="utf-8")
+                plot_path.write_text(analysis_plot.generate_plot_py(self.server.db_root, rows, cols, cells), encoding="utf-8")
                 subprocess.Popen([sys.executable, str(plot_path)], cwd=str(record_dir))
                 try:
                     subprocess.Popen(["open", "-a", "Visual Studio Code", str(plot_path)])
@@ -849,607 +850,6 @@ class DatParserHandler(BaseHTTPRequestHandler):
             self.send_json({"error": str(exc)}, HTTPStatus.NOT_FOUND)
         except Exception as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
-
-
-def _analysis_source_data_ids_from_cells(cells: list) -> list[str]:
-    """Stable unique list of data ids from New Analysis grid cells (row/col order in payload)."""
-    seen: set[str] = set()
-    out: list[str] = []
-    for c in cells:
-        if not isinstance(c, dict):
-            continue
-        for did in c.get("data_ids") or []:
-            s = str(did).strip()
-            if not s or s in seen:
-                continue
-            seen.add(s)
-            out.append(s)
-    return out
-
-
-def _meta_default_axis_key(meta: dict, key: str) -> str | None:
-    v = meta.get(key)
-    if v is None:
-        return None
-    s = str(v).strip()
-    return s or None
-
-
-def _data_csv_header_columns(csv_path: Path) -> list[str]:
-    import csv as _csv
-
-    try:
-        with open(csv_path, encoding="utf-8") as f:
-            for raw in f:
-                line = raw.strip()
-                if not line or line.startswith("#"):
-                    continue
-                return [c.strip() for c in next(_csv.reader([line]))]
-    except (OSError, StopIteration, ValueError, _csv.Error):
-        return []
-
-
-def _validate_analysis_grid_cells(root: Path, cells: list) -> str | None:
-    """Reject invalid multi-dataset cells. Return human-readable error or None."""
-    for c in cells:
-        if not isinstance(c, dict):
-            continue
-        ids = [str(x).strip() for x in (c.get("data_ids") or []) if str(x).strip()]
-        if len(ids) <= 1:
-            continue
-        pairs: list[tuple[str, str]] = []
-        for data_id in ids:
-            csv_path = root / "data" / data_id / f"{data_id}.csv"
-            meta_path = root / "data" / data_id / "metadata.json"
-            if not csv_path.exists():
-                return f'data "{data_id}" に CSV がありません。'
-            if not meta_path.exists():
-                return (
-                    "1 つのセルに複数の data を入れる場合、各 data の metadata.json に "
-                    f'default_x / default_y が必要です（欠け: "{data_id}"）。'
-                )
-            try:
-                dm = json.loads(meta_path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError) as exc:
-                return f'data "{data_id}" の metadata が読めません（{exc}）。'
-            dx = _meta_default_axis_key(dm, "default_x")
-            dy = _meta_default_axis_key(dm, "default_y")
-            if not dx or not dy:
-                return "1 つのセルに複数の data があるときは、各 data の default_x と default_y の両方を metadata に指定してください。"
-            cols = _data_csv_header_columns(csv_path)
-            if dx not in cols or dy not in cols:
-                return f'data "{data_id}" の CSV に default で指定した列（{dx!r}, {dy!r}）がありません。'
-            pairs.append((dx, dy))
-        if len({p[0] for p in pairs}) != 1:
-            return "1 つのセルに複数の data があるとき、すべて同じ default_x（列名）である必要があります。"
-        if len({p[1] for p in pairs}) != 1:
-            return "1 つのセルに複数の data があるとき、すべて同じ default_y（列名）である必要があります。"
-    return None
-
-
-def _plot_cell_hardcode_defaults(root: Path, data_ids: list[str]) -> tuple[list[str], str | None, str | None, str, str, str, float, str]:
-    """Initial values for plot.py constants (single source at generation time; user edits plot.py freely)."""
-    line_color = "black"
-    linewidth = 1.2
-    marker = "o"
-    if not data_ids:
-        return [], None, None, "", "", line_color, linewidth, marker
-    if len(data_ids) == 1:
-        did = data_ids[0]
-        csv_path = root / "data" / did / f"{did}.csv"
-        meta_path = root / "data" / did / "metadata.json"
-        dm: dict = {}
-        if meta_path.exists():
-            try:
-                dm = json.loads(meta_path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                dm = {}
-        dx = _meta_default_axis_key(dm, "default_x")
-        dy = _meta_default_axis_key(dm, "default_y")
-        cols = _data_csv_header_columns(csv_path)
-        if dx and dy and dx in cols and dy in cols:
-            return [did], dx, dy, str(dx), str(dy), line_color, linewidth, marker
-        return [did], None, None, "", "", line_color, linewidth, marker
-    first = data_ids[0]
-    mp = root / "data" / first / "metadata.json"
-    dm = json.loads(mp.read_text(encoding="utf-8")) if mp.exists() else {}
-    dx = _meta_default_axis_key(dm, "default_x")
-    dy = _meta_default_axis_key(dm, "default_y")
-    return list(data_ids), dx, dy, str(dx or ""), str(dy or ""), line_color, linewidth, marker
-
-
-def _analysis_data_display_name(root: Path, data_id: str) -> str:
-    mp = root / "data" / data_id / "metadata.json"
-    if mp.exists():
-        try:
-            dm = json.loads(mp.read_text(encoding="utf-8"))
-            raw = dm.get("display_name")
-            if raw is not None:
-                s = str(raw).strip()
-                if s:
-                    return s
-        except (OSError, json.JSONDecodeError):
-            pass
-    return str(data_id)
-
-
-def _plot_cell_title(root: Path, data_ids: list[str], r: int, c0: int) -> str:
-    if not data_ids:
-        return f"({r + 1},{c0 + 1})"
-    return " / ".join(_analysis_data_display_name(root, d) for d in data_ids)
-
-
-def _format_ax_spec_list_entry(
-    r: int,
-    c0: int,
-    rs: int,
-    cs_: int,
-    ids: list[str],
-    x_col: str | None,
-    y_col: str | None,
-    x_lab: str,
-    y_lab: str,
-    line_color: str,
-    linewidth: float,
-    marker: str,
-    title: str,
-) -> str:
-    """One element of _AX_SPECS as a JSON-like indented dict (valid Python)."""
-    return (
-        "    {\n"
-        f'        "ax": [{r + 1}, {c0 + 1}],\n'
-        f'        "row": {r},\n'
-        f'        "col": {c0},\n'
-        f'        "rowspan": {rs},\n'
-        f'        "colspan": {cs_},\n'
-        f'        "data_ids": {repr(ids)},\n'
-        f'        "x_col": {repr(x_col)},\n'
-        f'        "y_col": {repr(y_col)},\n'
-        f'        "x_label": {repr(x_lab)},\n'
-        f'        "y_label": {repr(y_lab)},\n'
-        f'        "line_color": {repr(line_color)},\n'
-        f'        "linewidth": {repr(linewidth)},\n'
-        f'        "marker": {repr(marker)},\n'
-        f'        "title": {repr(title)},\n'
-        "    },\n"
-    )
-
-
-_PLOT_PY_TAIL = """
-# --- 以下の定数・描画ループの役割（必要に応じて編集してください）---
-# LINE_STYLES … 1 つのサブプロットに複数の data 系列を重ねるとき、線種を順に切り替えるためのタプル。
-# for cfg in _AX_SPECS: … ループ … _AX_SPECS の各要素を 1 サブプロットとして、CSV から列を取り出して描画する（サブプロットのタイトルは cfg["title"]）。
-# savefig / plt.close … 画像 output.png を書き出して終了する。
-
-LINE_STYLES = ("-", "--", "-.", ":")
-
-
-fig = plt.figure(
-    figsize=(CELL_IN * COLS, CELL_IN * ROWS),
-    facecolor="white",
-    constrained_layout=True,
-)
-gs = GridSpec(ROWS, COLS, figure=fig)
-
-for cfg in _AX_SPECS:
-    row, col = cfg["row"], cfg["col"]
-    rs, cs = cfg["rowspan"], cfg["colspan"]
-    ax = fig.add_subplot(gs[row : row + rs, col : col + cs])
-    ax.set_facecolor("white")
-    for spine in ax.spines.values():
-        spine.set_color("black")
-        spine.set_linewidth(0.8)
-    ax.tick_params(axis="both", colors="black", labelsize=9)
-    ax.set_axisbelow(True)
-    ax.grid(True, linestyle="-", linewidth=0.45, color="#999999", alpha=0.55)
-
-    data_ids = cfg["data_ids"]
-    if not data_ids:
-        ax.set_axis_off()
-        continue
-
-    x_col, y_col = cfg["x_col"], cfg["y_col"]
-    x_label, y_label = cfg["x_label"], cfg["y_label"]
-    line_color = cfg["line_color"]
-    linewidth = cfg["linewidth"]
-    marker = cfg["marker"]
-
-    for i, data_id in enumerate(data_ids):
-        csv_path = DB_ROOT / "data" / data_id / f"{data_id}.csv"
-        df = pd.read_csv(csv_path, comment="#")
-        if x_col is not None and y_col is not None and x_col in df.columns and y_col in df.columns:
-            xs, ys = df[x_col], df[y_col]
-        else:
-            xs, ys = df.iloc[:, 0], df.iloc[:, 1]
-        sty = LINE_STYLES[i % len(LINE_STYLES)]
-        pt = max(len(xs), 1)
-        step = max(1, pt // 80)
-        ax.plot(
-            xs,
-            ys,
-            color=line_color,
-            linestyle=sty,
-            linewidth=linewidth,
-            marker=marker,
-            markersize=2.5,
-            markevery=slice(0, None, step),
-            markerfacecolor=line_color,
-            markeredgecolor=line_color,
-        )
-
-    ax.set_title(cfg["title"], fontsize=9, color="black")
-    if x_label:
-        ax.set_xlabel(x_label, fontsize=9, color="black")
-    if y_label:
-        ax.set_ylabel(y_label, fontsize=9, color="black")
-
-out = HERE / "output.png"
-fig.savefig(out, dpi=300, facecolor="white")
-plt.close(fig)
-print(f"Saved: {out}")
-"""
-
-
-def _generate_plot_py(root: Path, rows: int, cols: int, cells: list) -> str:
-    """Emit plot.py: _AX_SPECS only — one JSON-like dict per ax (subplot)."""
-    lines: list[str] = []
-    lines.append(
-        "# plot.py — starting point only; edit constants and plotting logic freely.\n"
-        "# data id SoT: metadata.json → \"source_data\" (this script does not read that file).\n"
-    )
-    lines.append("from pathlib import Path\n\n")
-    lines.append("import pandas as pd\n")
-    lines.append("import matplotlib.pyplot as plt\n")
-    lines.append("from matplotlib.gridspec import GridSpec\n\n")
-    lines.append("HERE = Path(__file__).parent\n")
-    lines.append("DB_ROOT = HERE.parents[1]\n\n")
-    lines.append("# ---- figure layout (edit) ----\n")
-    lines.append(f"ROWS = {rows}\n")
-    lines.append(f"COLS = {cols}\n")
-    lines.append("CELL_IN = 3.0  # inches per grid slot (width & height)\n\n")
-
-    ax_blocks: list[str] = []
-    for c in cells:
-        if not isinstance(c, dict):
-            continue
-        r = int(c["row"])
-        c0 = int(c["col"])
-        rs = int(c.get("rowspan", 1))
-        cs_ = int(c.get("colspan", 1))
-        ids_raw = [str(x).strip() for x in (c.get("data_ids") or []) if str(x).strip()]
-        ids, x_col, y_col, x_lab, y_lab, line_color, linewidth, marker = _plot_cell_hardcode_defaults(root, ids_raw)
-        title = _plot_cell_title(root, ids_raw, r, c0)
-        ax_blocks.append(
-            _format_ax_spec_list_entry(
-                r, c0, rs, cs_, ids, x_col, y_col, x_lab, y_lab, line_color, linewidth, marker, title
-            )
-        )
-
-    lines.append("# ---- per-axis defaults (edit) ----\n")
-    lines.append("# _AX_SPECS … サブプロット（ax）ごとに 1 要素のリスト。JSON に近い辞書を並べただけなので、このリストだけ編集すればよい。\n\n")
-    lines.append("_AX_SPECS = [\n")
-    lines.extend(ax_blocks)
-    lines.append("]\n\n")
-    lines.append(_PLOT_PY_TAIL)
-    return "".join(lines)
-
-
-def _update_json_file(path: Path, updater) -> bool:
-    """Load a JSON file, call updater(data) -> bool, write back if True."""
-    try:
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-        changed = updater(data)
-        if changed:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-                f.write("\n")
-        return bool(changed)
-    except (OSError, json.JSONDecodeError) as exc:
-        _log.warning("Failed to patch metadata at %s: %s", path, exc)
-        return False
-
-
-def _iter_metadata_files(root: Path, *subdirs: str):
-    """Yield all metadata.json files found one level deep in the given subdirectories."""
-    for subdir in subdirs:
-        d = root / subdir
-        if d.is_dir():
-            for record_dir in d.iterdir():
-                if record_dir.is_dir():
-                    meta = record_dir / "metadata.json"
-                    if meta.exists():
-                        yield meta
-
-
-def _update_record_display_name(root: Path, kind: str, record_id: str, display_name: str) -> dict:
-    subdir = (
-        "rawdata" if kind == "rawdata"
-        else "data" if kind == "data"
-        else "samples" if kind == "sample"
-        else "exp" if kind == "exp"
-        else "analysis" if kind == "analysis"
-        else "build" if kind == "build"
-        else ""
-    )
-    if any(c in display_name for c in ("/", "\\", "\0")):
-        return {"error": "invalid display_name"}
-    if kind == "calc":
-        manifest_path = root / "calculators" / record_id / "calculator.json"
-        if not manifest_path.exists():
-            return {"error": f"calculators/{record_id} not found"}
-
-        def _apply_calc(data):
-            current = str(data.get("display_name") or data.get("title") or "").strip()
-            if current == display_name:
-                return False
-            data["display_name"] = display_name
-            data.pop("title", None)
-            return True
-
-        changed = _update_json_file(manifest_path, _apply_calc)
-        return {"ok": True, "id": record_id, "display_name": display_name, "updated_refs": 0, "changed": changed}
-    if not subdir:
-        return {"error": f"unsupported kind: {kind}"}
-    meta_path = root / subdir / record_id / "metadata.json"
-    if not meta_path.exists():
-        return {"error": f"{subdir}/{record_id} not found"}
-
-    def _apply(data):
-        if data.get("display_name") == display_name:
-            return False
-        data["display_name"] = display_name
-        return True
-
-    changed = _update_json_file(meta_path, _apply)
-    return {"ok": True, "id": record_id, "display_name": display_name, "updated_refs": 0, "changed": changed}
-
-
-def _cascade_rename(root: Path, kind: str, old_id: str, new_id: str) -> dict:
-    """Rename an entity and cascade-update all cross-references."""
-    updated = 0
-
-    if kind == "sample":
-        old_dir = root / "samples" / old_id
-        new_dir = root / "samples" / new_id
-        if not old_dir.exists():
-            return {"error": f"samples/{old_id} not found"}
-        if new_dir.exists():
-            return {"error": f"samples/{new_id} already exists"}
-        old_dir.rename(new_dir)
-
-        def _fix_sample(data, oid=old_id, nid=new_id):
-            changed = False
-            if data.get("sample_id") == oid:
-                data["sample_id"] = nid
-                changed = True
-            exp = data.get("exp")
-            if isinstance(exp, dict) and exp.get("sample_id") == oid:
-                exp["sample_id"] = nid
-                changed = True
-            return changed
-
-        for meta in _iter_metadata_files(root, "samples", "rawdata", "data", "exp"):
-            if _update_json_file(meta, _fix_sample):
-                updated += 1
-
-    elif kind == "exp":
-        old_dir = root / "exp" / old_id
-        new_dir = root / "exp" / new_id
-        if not old_dir.exists():
-            return {"error": f"exp/{old_id} not found"}
-        if new_dir.exists():
-            return {"error": f"exp/{new_id} already exists"}
-        old_dir.rename(new_dir)
-
-        def _fix_exp(data, oid=old_id, nid=new_id):
-            changed = False
-            if data.get("exp_id") == oid:
-                data["exp_id"] = nid
-                changed = True
-            exp = data.get("exp")
-            if isinstance(exp, dict) and exp.get("exp_id") == oid:
-                exp["exp_id"] = nid
-                changed = True
-            return changed
-
-        for meta in _iter_metadata_files(root, "exp", "rawdata", "data"):
-            if _update_json_file(meta, _fix_exp):
-                updated += 1
-
-    elif kind == "rawdata":
-        old_dir = root / "rawdata" / old_id
-        new_dir = root / "rawdata" / new_id
-        if not old_dir.exists():
-            return {"error": f"rawdata/{old_id} not found"}
-        if new_dir.exists():
-            return {"error": f"rawdata/{new_id} already exists"}
-        old_dir.rename(new_dir)
-
-        old_prefix = f"rawdata/{old_id}/"
-        new_prefix = f"rawdata/{new_id}/"
-
-        def _fix_rawdata_source(data, op=old_prefix, np=new_prefix, oid=old_id, nid=new_id):
-            changed = False
-            # New schema: rawdata_id field
-            if data.get("rawdata_id") == oid:
-                data["rawdata_id"] = nid
-                changed = True
-            # Legacy schema: source dict with rawdata_csv/rawdata_json paths
-            source = data.get("source")
-            if isinstance(source, dict):
-                for key in ("rawdata_csv", "rawdata_json"):
-                    val = source.get(key)
-                    if isinstance(val, str) and val.startswith(op):
-                        source[key] = np + val[len(op):]
-                        changed = True
-            return changed
-
-        for meta in _iter_metadata_files(root, "data"):
-            if _update_json_file(meta, _fix_rawdata_source):
-                updated += 1
-
-    elif kind == "data":
-        old_dir = root / "data" / old_id
-        new_dir = root / "data" / new_id
-        if not old_dir.exists():
-            return {"error": f"data/{old_id} not found"}
-        if new_dir.exists():
-            return {"error": f"data/{new_id} already exists"}
-        old_csv = old_dir / f"{old_id}.csv"
-        if old_csv.exists():
-            old_csv.rename(old_dir / f"{new_id}.csv")
-        old_dir.rename(new_dir)
-
-        meta_path = new_dir / "metadata.json"
-    elif kind == "analysis":
-        old_dir = root / "analysis" / old_id
-        new_dir = root / "analysis" / new_id
-        if not old_dir.exists():
-            return {"error": f"analysis/{old_id} not found"}
-        if new_dir.exists():
-            return {"error": f"analysis/{new_id} already exists"}
-        old_dir.rename(new_dir)
-
-        def _fix_analysis_ref(data, oid=old_id, nid=new_id):
-            refs = data.get("source_analysis")
-            if not isinstance(refs, list):
-                return False
-            new_refs = [nid if r == oid else r for r in refs]
-            if new_refs != refs:
-                data["source_analysis"] = new_refs
-                return True
-            return False
-
-        for meta in _iter_metadata_files(root, "build"):
-            if _update_json_file(meta, _fix_analysis_ref):
-                updated += 1
-
-    elif kind == "build":
-        old_dir = root / "build" / old_id
-        new_dir = root / "build" / new_id
-        if not old_dir.exists():
-            return {"error": f"build/{old_id} not found"}
-        if new_dir.exists():
-            return {"error": f"build/{new_id} already exists"}
-        old_dir.rename(new_dir)
-
-    elif kind == "calc":
-        old_dir = root / "calculators" / old_id
-        new_dir = root / "calculators" / new_id
-        if not old_dir.exists():
-            return {"error": f"calculators/{old_id} not found"}
-        if new_dir.exists():
-            return {"error": f"calculators/{new_id} already exists"}
-        old_dir.rename(new_dir)
-        manifest = new_dir / "calculator.json"
-        if manifest.exists():
-            def _fix_manifest(data, oid=old_id, nid=new_id):
-                if data.get("id") == oid:
-                    data["id"] = nid
-                    return True
-                return False
-            _update_json_file(manifest, _fix_manifest)
-        def _fix_calc_ref(data, oid=old_id, nid=new_id):
-            if data.get("calculator") == oid:
-                data["calculator"] = nid
-                return True
-            return False
-        for meta in _iter_metadata_files(root, "data"):
-            if _update_json_file(meta, _fix_calc_ref):
-                updated += 1
-
-    else:
-        return {"error": f"unknown kind: {kind}"}
-
-    return {"ok": True, "new_id": new_id, "updated_refs": updated}
-
-
-def _analysis_stale_refs_for_data(root: Path, data_id: str) -> dict[str, object]:
-    analysis_ids: list[str] = []
-    missing_refs = 0
-    for meta_path in _iter_metadata_files(root, "analysis"):
-        try:
-            with open(meta_path, encoding="utf-8") as f:
-                meta = json.load(f)
-        except (OSError, json.JSONDecodeError) as exc:
-            _log.warning("Skipping unreadable analysis metadata %s: %s", meta_path, exc)
-            continue
-        refs = meta.get("source_data")
-        if not isinstance(refs, list):
-            continue
-        project_id = meta_path.parent.name
-        project_missing = 0
-        for raw_ref in refs:
-            if isinstance(raw_ref, str) and raw_ref == data_id:
-                project_missing += 1
-        if project_missing:
-            analysis_ids.append(project_id)
-            missing_refs += project_missing
-    return {"analysis_ids": analysis_ids, "missing_refs": missing_refs}
-
-
-def _build_stale_refs_for_analysis(root: Path, analysis_id: str) -> dict[str, object]:
-    build_ids: list[str] = []
-    missing_refs = 0
-    for meta_path in _iter_metadata_files(root, "build"):
-        try:
-            with open(meta_path, encoding="utf-8") as f:
-                meta = json.load(f)
-        except (OSError, json.JSONDecodeError) as exc:
-            _log.warning("Skipping unreadable build metadata %s: %s", meta_path, exc)
-            continue
-        refs = meta.get("source_analysis")
-        if not isinstance(refs, list):
-            continue
-        build_id = meta_path.parent.name
-        project_missing = sum(1 for r in refs if isinstance(r, str) and r == analysis_id)
-        if project_missing:
-            build_ids.append(build_id)
-            missing_refs += project_missing
-    return {"build_ids": build_ids, "missing_refs": missing_refs}
-
-
-def _delete_entity(root: Path, kind: str, entity_id: str) -> dict[str, object]:
-    if not entity_id or any(c in entity_id for c in ("/", "\\", "\0")) or entity_id in (".", ".."):
-        return {"error": "invalid id"}
-
-    dir_map = {
-        "sample": root / "samples" / entity_id,
-        "exp": root / "exp" / entity_id,
-        "data": root / "data" / entity_id,
-        "analysis": root / "analysis" / entity_id,
-        "build": root / "build" / entity_id,
-        "calc": root / "calculators" / entity_id,
-    }
-
-    if kind == "rawdata":
-        return {"error": "rawdata delete is disabled"}
-    target_dir = dir_map.get(kind)
-    if target_dir is None:
-        return {"error": f"unknown kind: {kind}"}
-    if not target_dir.is_dir():
-        return {"error": "not found"}
-
-    stale_info: dict[str, object] = {"analysis_ids": [], "missing_refs": 0}
-    if kind == "data":
-        stale_info = _analysis_stale_refs_for_data(root, entity_id)
-
-    build_stale_info: dict[str, object] = {"build_ids": [], "missing_refs": 0}
-    if kind == "analysis":
-        build_stale_info = _build_stale_refs_for_analysis(root, entity_id)
-
-    shutil.rmtree(target_dir)
-    return {
-        "ok": True,
-        "kind": kind,
-        "id": entity_id,
-        "stale_analyses": stale_info["analysis_ids"],
-        "stale_analysis_count": len(stale_info["analysis_ids"]),
-        "stale_builds": build_stale_info["build_ids"],
-        "stale_build_count": len(build_stale_info["build_ids"]),
-        "missing_reference_count": stale_info["missing_refs"],
-    }
 
 
 def build_parser() -> argparse.ArgumentParser:
