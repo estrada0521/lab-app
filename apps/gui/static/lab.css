@@ -497,7 +497,8 @@
       pointer-events: auto;
     }
     .copy-path-btn:hover { color: var(--text); }
-    .browser-file .copy-path-btn.success {
+    .browser-file .copy-path-btn.success,
+    .catalog-page .catalog-list-item .copy-path-btn.success {
       opacity: 1;
       pointer-events: auto;
       color: #34c759;

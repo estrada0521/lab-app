@@ -62,16 +62,13 @@ function renderList(items) {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
       </span>
     `;
-    btn.querySelector(".copy-path-btn").addEventListener("click", (e) => {
-      e.stopPropagation();
-      const absPath = dbRoot ? dbRoot.replace(/\/$/, "") + "/analysis/" + entry.id : "analysis/" + entry.id;
-      navigator.clipboard.writeText(absPath).then(() => {
-        const cb = btn.querySelector(".copy-path-btn");
-        cb.classList.add("success");
-        setTimeout(() => cb.classList.remove("success"), 1200);
-      });
-    });
     btn.addEventListener("click", (e) => {
+      if (isLabCopyPathHit(btn, e.clientX, e.clientY)) {
+        e.stopPropagation();
+        const absPath = dbRoot ? dbRoot.replace(/\/$/, "") + "/analysis/" + entry.id : "analysis/" + entry.id;
+        copyTextToClipboard(absPath).then(() => flashLabCopyPathBtn(btn)).catch(err => setStatus(err.message || "Copy failed", true));
+        return;
+      }
       if (btn.classList.contains("current")) {
         const nameEl = btn.querySelector(".catalog-list-name");
         if (nameEl && !nameEl.querySelector("input")) {
