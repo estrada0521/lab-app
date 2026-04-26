@@ -1,4 +1,7 @@
-"""Analysis startup: grid validation and generated plot.py content."""
+"""新規分析プロジェクト用: グリッド整合性チェックと plot.py 雛形の生成。
+
+HTTP 層は server が担い、ここは「分析セッション開始時のデータ検証とスクリプト生成」に限定する。
+"""
 
 from __future__ import annotations
 

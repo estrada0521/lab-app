@@ -20,9 +20,13 @@ from . import core
 from pipeline.datagen import core as data_core
 from pipeline.datagen import gui as data_gui
 
-from . import analysis_plot
+from .analysis import (
+    collect_source_data_ids_from_cells,
+    generate_plot_py,
+    validate_analysis_grid_cells,
+)
 from . import catalog
-from . import entity_ops
+from .records import cascade_rename, delete_entity, update_record_display_name
 
 
 STATIC_DIR = Path(__file__).with_name("static")
@@ -764,7 +768,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 new_id = str(payload.get("new_id", "")).strip()
                 new_name = str(payload.get("new_name", "")).strip()
                 if kind in {"rawdata", "data", "sample", "exp", "analysis", "build", "calc"} and old_id and new_name:
-                    result = entity_ops.update_record_display_name(self.server.db_root, kind, old_id, new_name)
+                    result = update_record_display_name(self.server.db_root, kind, old_id, new_name)
                     status = HTTPStatus.OK if not result.get("error") else HTTPStatus.BAD_REQUEST
                     self.send_json(result, status)
                     return
@@ -777,14 +781,14 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 if any(c in new_id for c in ("/", "\\", "\0")) or new_id in (".", ".."):
                     self.send_json({"error": "invalid new_id"}, HTTPStatus.BAD_REQUEST)
                     return
-                result = entity_ops.cascade_rename(self.server.db_root, kind, old_id, new_id)
+                result = cascade_rename(self.server.db_root, kind, old_id, new_id)
                 self.send_json(result)
             elif parsed.path == "/api/delete-data":
                 data_id = str(payload.get("id", "")).strip()
                 if not data_id or any(c in data_id for c in ("/", "\\", "\0")) or data_id in (".", ".."):
                     self.send_json({"error": "invalid id"}, HTTPStatus.BAD_REQUEST)
                     return
-                result = entity_ops.delete_entity(self.server.db_root, "data", data_id)
+                result = delete_entity(self.server.db_root, "data", data_id)
                 status = HTTPStatus.OK if not result.get("error") else HTTPStatus.BAD_REQUEST
                 self.send_json(result, status)
             elif parsed.path == "/api/delete-entity":
@@ -793,7 +797,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 if not kind or not entity_id:
                     self.send_json({"error": "kind and id required"}, HTTPStatus.BAD_REQUEST)
                     return
-                result = entity_ops.delete_entity(self.server.db_root, kind, entity_id)
+                result = delete_entity(self.server.db_root, kind, entity_id)
                 status = HTTPStatus.OK if not result.get("error") else HTTPStatus.BAD_REQUEST
                 self.send_json(result, status)
             elif parsed.path == "/api/analysis-start":
@@ -805,7 +809,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 rows = int(grid_data.get("rows", 2))
                 cols = int(grid_data.get("cols", 2))
                 cells = [c for c in grid_data.get("cells", []) if isinstance(c, dict)]
-                grid_err = analysis_plot.validate_analysis_grid_cells(self.server.db_root, cells)
+                grid_err = validate_analysis_grid_cells(self.server.db_root, cells)
                 if grid_err:
                     self.send_json({"error": grid_err}, HTTPStatus.BAD_REQUEST)
                     return
@@ -814,7 +818,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 new_id = _next_available_id(analysis_dir)
                 record_dir = analysis_dir / new_id
                 record_dir.mkdir(parents=True, exist_ok=False)
-                source_data = analysis_plot.collect_source_data_ids_from_cells(cells)
+                source_data = collect_source_data_ids_from_cells(cells)
                 meta = {
                     "display_name": display_name or new_id,
                     "created_at": datetime.datetime.now().isoformat(timespec="milliseconds"),
@@ -824,7 +828,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                     json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
                 )
                 plot_path = record_dir / "plot.py"
-                plot_path.write_text(analysis_plot.generate_plot_py(self.server.db_root, rows, cols, cells), encoding="utf-8")
+                plot_path.write_text(generate_plot_py(self.server.db_root, rows, cols, cells), encoding="utf-8")
                 subprocess.Popen([sys.executable, str(plot_path)], cwd=str(record_dir))
                 try:
                     subprocess.Popen(["open", "-a", "Visual Studio Code", str(plot_path)])

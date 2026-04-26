@@ -1,4 +1,7 @@
-"""JSON metadata patching, rename cascade, and entity deletion for the GUI server."""
+"""ワークスペース上のレコード寿命: メタデータの JSON パッチ、ID 変更の参照伝播、削除。
+
+GUI のどの URL かは知らず、db_root 以下のディレクトリと metadata.json の整合性だけを扱う。
+"""
 
 from __future__ import annotations
 
