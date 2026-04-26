@@ -848,39 +848,109 @@ class DatParserHandler(BaseHTTPRequestHandler):
 
 
 def _generate_plot_template() -> str:
-    return (
-        "import json\n"
-        "import pandas as pd\n"
-        "import matplotlib.pyplot as plt\n"
-        "from matplotlib.gridspec import GridSpec\n"
-        "from pathlib import Path\n"
-        "\n"
-        "HERE = Path(__file__).parent\n"
-        "DB_ROOT = HERE.parents[1]\n"
-        "meta = json.loads((HERE / \"metadata.json\").read_text(encoding=\"utf-8\"))\n"
-        "\n"
-        "grid = meta[\"grid\"]\n"
-        "fig = plt.figure(figsize=(12, 8))\n"
-        "gs = GridSpec(grid[\"rows\"], grid[\"cols\"], figure=fig)\n"
-        "\n"
-        "for cell in grid[\"cells\"]:\n"
-        "    row, col = cell[\"row\"], cell[\"col\"]\n"
-        "    rs = cell.get(\"rowspan\", 1)\n"
-        "    cs = cell.get(\"colspan\", 1)\n"
-        "    ax = fig.add_subplot(gs[row:row + rs, col:col + cs])\n"
-        "    for data_id in cell.get(\"data_ids\", []):\n"
-        "        csv_path = DB_ROOT / \"data\" / data_id / f\"{data_id}.csv\"\n"
-        "        df = pd.read_csv(csv_path, comment=\"#\")\n"
-        "        ax.plot(df.iloc[:, 0], df.iloc[:, 1], label=data_id)\n"
-        "    ax.legend()\n"
-        "    title = \" / \".join(cell.get(\"data_ids\", [])) or f\"({row + 1},{col + 1})\"\n"
-        "    ax.set_title(title)\n"
-        "\n"
-        "plt.tight_layout()\n"
-        "out = HERE / \"output.png\"\n"
-        "plt.savefig(out, dpi=150, bbox_inches=\"tight\")\n"
-        "print(f\"Saved: {out}\")\n"
-    )
+    # Generated script: square grid cells, black ink, axis labels only when data metadata has default_x & default_y.
+    return '''import json
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
+from pathlib import Path
+
+HERE = Path(__file__).parent
+DB_ROOT = HERE.parents[1]
+meta = json.loads((HERE / "metadata.json").read_text(encoding="utf-8"))
+
+grid = meta["grid"]
+rows = int(grid["rows"])
+cols = int(grid["cols"])
+cell_in = 3.0
+fig = plt.figure(
+    figsize=(cell_in * cols, cell_in * rows),
+    facecolor="white",
+    constrained_layout=True,
+)
+gs = GridSpec(rows, cols, figure=fig)
+
+
+def _meta_col(d, key):
+    v = d.get(key)
+    if v is None:
+        return None
+    s = str(v).strip()
+    return s or None
+
+
+def _read_data_meta(data_id):
+    p = DB_ROOT / "data" / data_id / "metadata.json"
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+LINE_STYLES = ("-", "--", "-.", ":")
+
+for cell in grid["cells"]:
+    row, col = cell["row"], cell["col"]
+    rs = cell.get("rowspan", 1)
+    cs = cell.get("colspan", 1)
+    ax = fig.add_subplot(gs[row : row + rs, col : col + cs])
+    ax.set_facecolor("white")
+    for spine in ax.spines.values():
+        spine.set_color("black")
+        spine.set_linewidth(0.8)
+    ax.tick_params(axis="both", colors="black", labelsize=9)
+
+    axis_xlabel = None
+    axis_ylabel = None
+    data_ids = cell.get("data_ids", [])
+    for i, data_id in enumerate(data_ids):
+        csv_path = DB_ROOT / "data" / data_id / f"{data_id}.csv"
+        df = pd.read_csv(csv_path, comment="#")
+        dmeta = _read_data_meta(data_id)
+        dx = _meta_col(dmeta, "default_x")
+        dy = _meta_col(dmeta, "default_y")
+        if dx and dy and dx in df.columns and dy in df.columns:
+            xs, ys = df[dx], df[dy]
+            if axis_xlabel is None:
+                axis_xlabel, axis_ylabel = str(dx), str(dy)
+        else:
+            xs, ys = df.iloc[:, 0], df.iloc[:, 1]
+        sty = LINE_STYLES[i % len(LINE_STYLES)]
+        n = max(len(xs), 1)
+        step = max(1, n // 80)
+        ax.plot(
+            xs,
+            ys,
+            color="black",
+            linestyle=sty,
+            linewidth=1.2,
+            marker="o",
+            markersize=2.5,
+            markevery=slice(0, None, step),
+            markerfacecolor="black",
+            markeredgecolor="black",
+            label=data_id,
+        )
+
+    title = " / ".join(data_ids) or f"({row + 1},{col + 1})"
+    ax.set_title(title, fontsize=9, color="black")
+    if axis_xlabel:
+        ax.set_xlabel(axis_xlabel, fontsize=9, color="black")
+    if axis_ylabel:
+        ax.set_ylabel(axis_ylabel, fontsize=9, color="black")
+    if data_ids:
+        leg = ax.legend(frameon=False, fontsize=8)
+        if leg:
+            for t in leg.get_texts():
+                t.set_color("black")
+
+out = HERE / "output.png"
+fig.savefig(out, dpi=150, facecolor="white")
+plt.close(fig)
+print(f"Saved: {out}")
+'''
 
 
 def _update_json_file(path: Path, updater) -> bool:
