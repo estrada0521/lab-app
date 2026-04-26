@@ -13,20 +13,10 @@
 
     <aside class="browser-pane" aria-label="Data browser">
       <div class="browser-topline">
-        <div class="page-menu-wrap">
-          <button class="page-menu-btn" id="pageMenuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="pageMenuPopover">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2.5 4H13.5"/><path d="M2.5 8H13.5"/><path d="M2.5 12H13.5"/></svg>
-          </button>
-          <div class="page-menu-popover" id="pageMenuPopover" hidden>
-            <a class="page-menu-link" href="/">Workspace</a>
-            <a class="page-menu-link" href="/samples/">Samples</a>
-            <a class="page-menu-link" href="/calculators/">Calculators</a>
-            <a class="page-menu-link" href="/experiments/">Experiments</a>
-            <a class="page-menu-link" href="/analysis/">Analysis</a>
-            <a class="page-menu-link current" href="/analysis-startup/">New Analysis</a>
-            <a class="page-menu-link" href="/build/">Build</a>
-          </div>
-        </div>
+        <a class="as-back-to-analysis" href="/analysis/" aria-label="Analysis に戻る" title="Analysis に戻る">
+          <svg class="as-back-to-analysis-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>
+          <span class="as-back-to-analysis-label">Analysis</span>
+        </a>
       </div>
       <div class="browser-filter-grid">
         <label for="asKindFilter">kind</label>
@@ -41,19 +31,7 @@
 
     <div class="pane-splitter" id="leftSplitter" aria-hidden="true"></div>
 
-    <section class="as-center-pane">
-      <div class="as-grid-controls">
-        <label class="as-dim-label">Rows<input type="number" id="asRows" class="as-dim-input" min="1" max="8" value="2"></label>
-        <label class="as-dim-label">Cols<input type="number" id="asCols" class="as-dim-input" min="1" max="8" value="2"></label>
-      </div>
-      <div class="as-grid-wrap">
-        <div class="as-grid" id="asGrid"></div>
-      </div>
-    </section>
-
-    <div class="pane-splitter" id="rightSplitter" aria-hidden="true"></div>
-
-    <section class="side-section">
+    <section class="side-section as-preview-section">
       <div class="side-header as-right-head">
         <div class="as-start-row">
           <label class="generate-name-field" for="asDisplayName">
@@ -89,6 +67,18 @@
             </div>
           </div>
         </section>
+      </div>
+    </section>
+
+    <div class="pane-splitter" id="rightSplitter" aria-hidden="true"></div>
+
+    <section class="as-grid-pane" aria-label="Analysis grid">
+      <div class="as-grid-controls">
+        <label class="as-dim-label">Rows<input type="number" id="asRows" class="as-dim-input" min="1" max="8" value="2"></label>
+        <label class="as-dim-label">Cols<input type="number" id="asCols" class="as-dim-input" min="1" max="8" value="2"></label>
+      </div>
+      <div class="as-grid-wrap">
+        <div class="as-grid" id="asGrid"></div>
       </div>
     </section>
 

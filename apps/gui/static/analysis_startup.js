@@ -514,7 +514,7 @@
       rightSplitterId: "rightSplitter",
       storagePrefix: "lab-new-analysis",
       left: { min: 140, max: 420, reserve: 460 },
-      right: { min: 200, max: 400, reserve: 440 },
+      right: { min: 200, max: 720, reserve: 380 },
     });
   }
 

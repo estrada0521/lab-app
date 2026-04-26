@@ -1688,12 +1688,47 @@ body.catalog-page {
 
 /* ── Analysis Startup ─────────────────────────────────────────────────────── */
 
-/* center pane */
-.as-center-pane { display:flex; flex-direction:column; gap:10px; padding:14px; overflow:hidden; min-height:0; }
+/* Grid pane is rightmost → pane_resize measures from right edge correctly.
+   Start with a large --right-pane-size so grid > preview by default. */
+body.new-analysis-page {
+  --right-pane-size: 620px;
+}
+
+/* grid pane (New Analysis: 右列。旧中央ペインと同じレイアウト) */
+.as-grid-pane { display:flex; flex-direction:column; gap:10px; padding:14px; overflow:hidden; min-height:0; }
 .as-grid-controls { display:flex; align-items:center; gap:14px; flex-shrink:0; }
 .as-dim-label { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--muted); }
 .as-dim-input { width:50px; height:24px; padding:0 6px; border:1px solid var(--line); border-radius:var(--radius,4px); background:var(--panel); color:var(--text); font-size:12px; text-align:center; font-family:inherit; }
 .as-dim-input:focus { outline:none; border-color:var(--accent); }
+
+/* New Analysis: 左上は Analysis 一覧へ戻る（共通ハンバーガーは使わない） */
+.new-analysis-page .as-back-to-analysis {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+  margin: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+}
+
+.new-analysis-page .as-back-to-analysis:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.new-analysis-page .as-back-to-analysis-icon {
+  flex-shrink: 0;
+  display: block;
+}
 
 /* grid */
 .as-grid-wrap { flex:1; overflow:auto; min-height:0; }
