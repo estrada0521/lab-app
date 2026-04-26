@@ -34,22 +34,21 @@ def _strip_text(v: object) -> str:
 
 
 def _data_fixed_legend_label(meta: dict) -> str:
-    """Legend text from data metadata conditions.fixed (same idea as GUI catalog; not written to analysis metadata)."""
+    """Legend text: only fixed *values* (e.g. ``10K``), not keys like ``temperature``."""
     cond = datagen_core.metadata_conditions(meta)
     fixed = cond.get("fixed")
     if not isinstance(fixed, dict) or not fixed:
         return ""
     parts: list[str] = []
-    for key, value in fixed.items():
-        ks = _strip_text(key)
+    for _key, value in fixed.items():
         vs = _strip_text(value)
-        if ks and vs:
-            parts.append(f"{ks}: {vs}")
+        if vs:
+            parts.append(vs)
     return ", ".join(parts)
 
 
 def _data_legend_label_for_plot(root: Path, data_id: str) -> str:
-    """Hardcoded series label: prefer conditions.fixed summary; else display_name; else id."""
+    """Hardcoded series label: prefer fixed *values* only; else display_name; else id."""
     mp = root / "data" / data_id / "metadata.json"
     meta: dict = {}
     if mp.exists():
@@ -199,6 +198,10 @@ def _format_ax_spec_list_entry(
     title: str,
     legend_labels: list[str],
     line_colors: list[str],
+    x_min: float | None,
+    x_max: float | None,
+    y_min: float | None,
+    y_max: float | None,
 ) -> str:
     """One element of _AX_SPECS as a JSON-like indented dict (valid Python)."""
     return (
@@ -218,6 +221,10 @@ def _format_ax_spec_list_entry(
         f'        "marker": {repr(marker)},\n'
         f'        "legend_labels": {repr(legend_labels)},\n'
         f'        "line_colors": {repr(line_colors)},\n'
+        f'        "x_min": {repr(x_min)},\n'
+        f'        "x_max": {repr(x_max)},\n'
+        f'        "y_min": {repr(y_min)},\n'
+        f'        "y_max": {repr(y_max)},\n'
         f'        "title": {repr(title)},\n'
         "    },\n"
     )
@@ -227,7 +234,8 @@ _PLOT_PY_TAIL = """
 # --- 以下の定数・描画ループの役割（必要に応じて編集してください）---
 # LINE_STYLES … 1 つのサブプロットに複数の data 系列を重ねるとき、線種を順に切り替えるためのタプル。
 # for cfg in _AX_SPECS: … ループ … _AX_SPECS の各要素を 1 サブプロットとして、CSV から列を取り出して描画する（サブプロットのタイトルは cfg["title"]）。
-# legend_labels / line_colors … 生成時に各 data の metadata.conditions.fixed などから埋め込んだもの（分析 metadata には書かない）。
+# legend_labels / line_colors … 生成時に各 data の metadata.conditions.fixed の値だけ等から埋め込んだもの（分析 metadata には書かない）。
+# x_min / x_max / y_min / y_max … 数を入れればその軸端を固定。None のままなら描画後の自動スケールを維持（片側だけ指定も可）。
 # savefig / plt.close … 画像 output.png を書き出して終了する。
 
 LINE_STYLES = ("-", "--", "-.", ":")
@@ -293,14 +301,24 @@ for cfg in _AX_SPECS:
             label=leg,
         )
 
-    if data_ids:
-        ax.legend(fontsize=7, loc="best", frameon=True, framealpha=0.92)
-
     ax.set_title(cfg["title"], fontsize=9, color="black")
     if x_label:
         ax.set_xlabel(x_label, fontsize=9, color="black")
     if y_label:
         ax.set_ylabel(y_label, fontsize=9, color="black")
+
+    # Optional axis limits (edit in _AX_SPECS). None keeps autoscale for that bound.
+    _xlim = ax.get_xlim()
+    _xm, _xM = cfg.get("x_min"), cfg.get("x_max")
+    if _xm is not None or _xM is not None:
+        ax.set_xlim(_xm if _xm is not None else _xlim[0], _xM if _xM is not None else _xlim[1])
+    _ylim = ax.get_ylim()
+    _ym, _yM = cfg.get("y_min"), cfg.get("y_max")
+    if _ym is not None or _yM is not None:
+        ax.set_ylim(_ym if _ym is not None else _ylim[0], _yM if _yM is not None else _ylim[1])
+
+    if data_ids:
+        ax.legend(fontsize=7, loc="best", frameon=False)
 
 out = HERE / "output.png"
 fig.savefig(out, dpi=300, facecolor="white")
@@ -357,6 +375,10 @@ def generate_plot_py(root: Path, rows: int, cols: int, cells: list) -> str:
                 title,
                 legend_labels,
                 line_colors,
+                None,
+                None,
+                None,
+                None,
             )
         )
 
