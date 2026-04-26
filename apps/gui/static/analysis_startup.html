@@ -32,17 +32,6 @@
     <div class="pane-splitter" id="leftSplitter" aria-hidden="true"></div>
 
     <section class="side-section as-preview-section">
-      <div class="side-header as-right-head">
-        <div class="as-start-row">
-          <label class="generate-name-field" for="asDisplayName">
-            <span>Display Name</span>
-            <input id="asDisplayName" placeholder="optional" autocomplete="off">
-          </label>
-          <button class="generate-btn" id="asStartBtn" type="button" title="Create analysis" disabled>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8H11.5"/><path d="M8.5 4.8L11.7 8L8.5 11.2"/><path d="M13.5 3.2V12.8"/></svg>
-          </button>
-        </div>
-      </div>
       <div class="side-panels">
         <section class="side-panel is-active">
           <div class="as-right-scroll">
@@ -74,6 +63,11 @@
 
     <section class="as-grid-pane" aria-label="Analysis grid">
       <div class="as-grid-controls">
+        <label class="generate-name-field inline" for="asDisplayName"><span>Display Name</span><input id="asDisplayName" placeholder="optional" autocomplete="off"></label>
+        <button class="generate-btn" id="asStartBtn" type="button" title="Create analysis" disabled>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8H11.5"/><path d="M8.5 4.8L11.7 8L8.5 11.2"/><path d="M13.5 3.2V12.8"/></svg>
+        </button>
+        <div class="as-grid-controls-sep"></div>
         <label class="as-dim-label">Rows<input type="number" id="asRows" class="as-dim-input" min="1" max="8" value="2"></label>
         <label class="as-dim-label">Cols<input type="number" id="asCols" class="as-dim-input" min="1" max="8" value="2"></label>
       </div>

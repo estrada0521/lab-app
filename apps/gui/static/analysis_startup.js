@@ -381,8 +381,8 @@
   }
 
   function renderSparkline(points, xLabel, yLabel) {
-    const PAD = { top: 16, right: 12, bottom: 34, left: 48 };
-    const W = 240, H = 240;
+    const PAD = { top: 16, right: 14, bottom: 42, left: 56 };
+    const W = 260, H = 260;
     const xs = points.map(p => p[0]), ys = points.map(p => p[1]);
     const xMin = Math.min(...xs), xMax = Math.max(...xs);
     const yMin = Math.min(...ys), yMax = Math.max(...ys);
@@ -396,28 +396,36 @@
       return (+v.toFixed(3)).toString();
     }
 
-    const path = points.map((p, i) => `${i ? "L" : "M"}${px(p[0]).toFixed(1)},${py(p[1]).toFixed(1)}`).join(" ");
+    const linePath = points.map((p, i) => `${i ? "L" : "M"}${px(p[0]).toFixed(1)},${py(p[1]).toFixed(1)}`).join(" ");
     const N = 4;
     const xt = Array.from({ length: N + 1 }, (_, i) => xMin + xR * i / N);
     const yt = Array.from({ length: N + 1 }, (_, i) => yMin + yR * i / N);
 
+    const ink = "#1a1a1a";
+    const tick = "#444444";
+    const grid = "#cccccc";
+
+    const gridLines =
+      xt.map(v => `<line x1="${px(v).toFixed(1)}" y1="${PAD.top}" x2="${px(v).toFixed(1)}" y2="${(PAD.top + ih).toFixed(1)}" stroke="${grid}" stroke-width="0.5"/>`).join("") +
+      yt.map(v => `<line x1="${PAD.left}" y1="${py(v).toFixed(1)}" x2="${(PAD.left + iw).toFixed(1)}" y2="${py(v).toFixed(1)}" stroke="${grid}" stroke-width="0.5"/>`).join("");
+
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     svg.setAttribute("class", "as-sparkline");
-    const ink = "#1a1a1a";
-    const tick = "#444444";
     svg.innerHTML =
       `<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>` +
+      `<rect x="${PAD.left}" y="${PAD.top}" width="${iw}" height="${ih}" fill="none"/>` +
+      gridLines +
       `<rect x="${PAD.left}" y="${PAD.top}" width="${iw}" height="${ih}" fill="none" stroke="${tick}" stroke-width="1"/>` +
       xt.map(v =>
-        `<text x="${px(v).toFixed(1)}" y="${(PAD.top + ih + 12).toFixed(1)}" text-anchor="middle" font-size="9" fill="${tick}">${esc(fmt(v))}</text>`
+        `<text x="${px(v).toFixed(1)}" y="${(PAD.top + ih + 14).toFixed(1)}" text-anchor="middle" font-size="11" fill="${tick}">${esc(fmt(v))}</text>`
       ).join("") +
       yt.map(v =>
-        `<text x="${(PAD.left - 4).toFixed(1)}" y="${py(v).toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="9" fill="${tick}">${esc(fmt(v))}</text>`
+        `<text x="${(PAD.left - 5).toFixed(1)}" y="${py(v).toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="11" fill="${tick}">${esc(fmt(v))}</text>`
       ).join("") +
-      `<text x="${(PAD.left + iw / 2).toFixed(1)}" y="${H - 2}" text-anchor="middle" font-size="9" fill="${tick}">${esc(xLabel)}</text>` +
-      `<text transform="translate(10,${(PAD.top + ih / 2).toFixed(1)}) rotate(-90)" text-anchor="middle" font-size="9" fill="${tick}">${esc(yLabel)}</text>` +
-      `<path d="${path}" fill="none" stroke="${ink}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+      `<text x="${(PAD.left + iw / 2).toFixed(1)}" y="${H - 2}" text-anchor="middle" font-size="11" fill="${tick}">${esc(xLabel)}</text>` +
+      `<text transform="translate(12,${(PAD.top + ih / 2).toFixed(1)}) rotate(-90)" text-anchor="middle" font-size="11" fill="${tick}">${esc(yLabel)}</text>` +
+      `<path d="${linePath}" fill="none" stroke="${ink}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
     return svg;
   }
 

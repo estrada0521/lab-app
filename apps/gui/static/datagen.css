@@ -1775,26 +1775,11 @@ body.new-analysis-page {
 
 .as-cell-pos { font-size:10px; color:var(--muted); position:absolute; bottom:5px; right:8px; font-family:monospace; pointer-events:none; opacity:0.6; }
 
-/* right panel header (display name + start button) at top */
-.as-right-head { align-items: center; width: 100%; }
-.new-analysis-page .as-start-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  width: 100%;
-  flex-wrap: nowrap;
-}
-.new-analysis-page .as-start-row .generate-name-field {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.new-analysis-page .as-start-row .generate-name-field input {
-  height: 28px;
-  box-sizing: border-box;
-  line-height: 1.2;
-  padding: 0 10px;
-}
-.new-analysis-page .as-start-row .generate-btn {
+.as-grid-controls .generate-btn { flex-shrink: 0; }
+.as-grid-controls-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--line);
   flex-shrink: 0;
 }
 
@@ -1912,9 +1897,8 @@ body.new-analysis-page {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: min(280px, 100%);
+  width: 100%;
   aspect-ratio: 1 / 1;
-  margin: 0 auto;
   box-sizing: border-box;
   background: #fff;
   border: 1px solid rgba(0, 0, 0, 0.12);
@@ -1932,22 +1916,20 @@ body.new-analysis-page {
   display: block;
 }
 
-.as-sparkline { width: 100%; height: auto; display: block; }
-
-/* vertical scrollbar on the physical left (near window when pane is right-docked) */
+/* LTR scroll so info block left edge matches .as-preview-graph (rtl + scrollbar-gutter skewed layout) */
 .new-analysis-page .as-preview-body-scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  direction: rtl;
-  scrollbar-gutter: stable;
 }
 
 .new-analysis-page .as-preview-info-ltr {
   direction: ltr;
   text-align: left;
   min-height: min-content;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .as-preview-info {
