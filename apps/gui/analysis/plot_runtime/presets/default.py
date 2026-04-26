@@ -20,9 +20,9 @@ RCPARAMS: dict[str, object] = {
     "ytick.major.size": 3.5,
     "ytick.minor.size": 2.0,
     "grid.linestyle": ":",
-    "grid.linewidth": 0.45,
-    "grid.color": "#999999",
-    "grid.alpha": 0.55,
+    "grid.linewidth": 0.5,
+    "grid.color": "#777777",
+    "grid.alpha": 0.72,
 }
 
 

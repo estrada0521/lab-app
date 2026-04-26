@@ -836,7 +836,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                     pass
                 self.send_json({"id": new_id, "path": f"analysis/{new_id}"})
             elif parsed.path == "/api/open-external":
-                # Open a file in Antigravity (or another app via "app" param)
+                # app: named app (-a), "Finder" = reveal in Finder, "default" = OS default app (mac: open path)
                 rel_path = str(payload.get("path", "")).strip()
                 if not rel_path:
                     self.send_json({"error": "path required"}, HTTPStatus.BAD_REQUEST)
@@ -845,6 +845,11 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 app = str(payload.get("app", "Antigravity")).strip() or "Antigravity"
                 if app == "Finder":
                     subprocess.Popen(["open", "-R", str(abs_path)])
+                elif app in ("default", "Default"):
+                    if sys.platform == "darwin":
+                        subprocess.Popen(["open", str(abs_path)])
+                    else:
+                        subprocess.Popen(["xdg-open", str(abs_path)])
                 else:
                     subprocess.Popen(["open", "-a", app, str(abs_path)])
                 self.send_json({"ok": True, "path": rel_path, "app": app})

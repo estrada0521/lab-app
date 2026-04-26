@@ -242,7 +242,7 @@ function renderDetail(detail) {
   memoPanel.load({kind: "analysis", id: detail.id}).catch(err => setStatus(err.message, true));
 }
 
-/** After New Analysis: wait for plot.py to write output.png (or any image), then open in a new tab. */
+/** After New Analysis: wait for plot.py to write output.png (or any image), then open with the OS default app (mac: Finder / LaunchServices). */
 async function waitAndOpenFirstOutputImage(projectId) {
   const maxAttempts = 40;
   const intervalMs = 350;
@@ -252,7 +252,11 @@ async function waitAndOpenFirstOutputImage(projectId) {
       const imgs = detail.images || [];
       if (imgs.length) {
         const pick = imgs.find(p => /(^|\/)output\.png$/i.test(p)) || imgs[0];
-        window.open(`/api/repo-file?path=${encodeURIComponent(pick)}`, "_blank", "noopener,noreferrer");
+        await apiJson("/api/open-external", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({path: pick, app: "default"}),
+        });
         return;
       }
     } catch (_) {
