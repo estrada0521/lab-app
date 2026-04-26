@@ -96,7 +96,7 @@
         if (cell.data_ids.length) {
           for (const did of cell.data_ids) {
             const line = document.createElement("div");
-            line.className = "as-cell-name";
+            line.className = "as-cell-name" + (did === _focusDataId ? " as-cell-name-current" : "");
             line.textContent = (_entriesIdx[did]?.display_name) || did;
             line.title = did;
             line.addEventListener("click", (ev) => {
@@ -158,13 +158,9 @@
       _lastKey = key;
 
       if (cell?.data_ids?.length) {
-        if (!_focusDataId || !cell.data_ids.includes(_focusDataId)) {
-          _focusDataId = cell.data_ids[0];
-        }
+        /* Cell body: selection only; central pane updates only on .as-cell-name click or list click. */
         renderGrid();
-        renderDataList();
         syncToolbar();
-        loadPreview(_focusDataId);
         return;
       }
     }
@@ -252,6 +248,7 @@
       const infoEl = document.getElementById("asPreviewInfo");
       if (graphEl) graphEl.innerHTML = '<span class="as-hint">Click data from the list</span>';
       if (infoEl) infoEl.innerHTML = "";
+      renderGrid();
     }
 
     container.innerHTML = "";
@@ -269,6 +266,7 @@
       btn.addEventListener("click", () => {
         _focusDataId = entry.id;
         renderDataList();
+        renderGrid();
         syncToolbar();
         loadPreview(entry.id);
       });
