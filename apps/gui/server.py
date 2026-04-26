@@ -835,24 +835,29 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
                 self.send_json({"id": new_id, "path": f"analysis/{new_id}"})
-            elif parsed.path == "/api/open-external":
-                # app: named app (-a), "Finder" = reveal in Finder, "default" = OS default app (mac: open path)
+            elif parsed.path == "/api/reveal-in-finder":
                 rel_path = str(payload.get("path", "")).strip()
                 if not rel_path:
                     self.send_json({"error": "path required"}, HTTPStatus.BAD_REQUEST)
                     return
                 abs_path = core.path_from_client(self.server.db_root, rel_path)
-                app = str(payload.get("app", "Antigravity")).strip() or "Antigravity"
-                if app == "Finder":
-                    subprocess.Popen(["open", "-R", str(abs_path)])
-                elif app in ("default", "Default"):
-                    if sys.platform == "darwin":
-                        subprocess.Popen(["open", str(abs_path)])
-                    else:
-                        subprocess.Popen(["xdg-open", str(abs_path)])
+                if sys.platform != "darwin":
+                    self.send_json({"error": "Finder reveal is only supported on macOS"}, HTTPStatus.BAD_REQUEST)
+                    return
+                subprocess.Popen(["open", "-R", str(abs_path)])
+                self.send_json({"ok": True, "path": rel_path})
+            elif parsed.path == "/api/open-external":
+                # OS default application for the file type (mac: open path, Linux: xdg-open).
+                rel_path = str(payload.get("path", "")).strip()
+                if not rel_path:
+                    self.send_json({"error": "path required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                abs_path = core.path_from_client(self.server.db_root, rel_path)
+                if sys.platform == "darwin":
+                    subprocess.Popen(["open", str(abs_path)])
                 else:
-                    subprocess.Popen(["open", "-a", app, str(abs_path)])
-                self.send_json({"ok": True, "path": rel_path, "app": app})
+                    subprocess.Popen(["xdg-open", str(abs_path)])
+                self.send_json({"ok": True, "path": rel_path})
             else:
                 self.send_json({"error": "not found"}, HTTPStatus.NOT_FOUND)
         except FileNotFoundError as exc:

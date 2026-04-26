@@ -193,10 +193,10 @@ document.addEventListener("click", async event => {
     if (!path) return;
     event.preventDefault();
     try {
-      const response = await fetch("/api/open-external", {
+      const response = await fetch("/api/reveal-in-finder", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({path, app: "Finder"}),
+        body: JSON.stringify({path}),
       });
       if (!response.ok) {
         const text = await response.text();
