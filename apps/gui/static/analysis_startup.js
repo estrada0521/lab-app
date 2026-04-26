@@ -170,6 +170,80 @@
     syncToolbar();
   }
 
+  function bboxOfKeys(keys) {
+    let minR = Infinity;
+    let maxR = -Infinity;
+    let minC = Infinity;
+    let maxC = -Infinity;
+    for (const k of keys) {
+      const [r, c] = kParse(k);
+      minR = Math.min(minR, r);
+      maxR = Math.max(maxR, r);
+      minC = Math.min(minC, c);
+      maxC = Math.max(maxC, c);
+    }
+    return { minR, maxR, minC, maxC };
+  }
+
+  /** True iff keys are exactly all cells in their axis-aligned bounding box. */
+  function isSolidRectangle(keys) {
+    if (keys.size < 2) return false;
+    const { minR, maxR, minC, maxC } = bboxOfKeys(keys);
+    const w = maxC - minC + 1;
+    const h = maxR - minR + 1;
+    if (keys.size !== w * h) return false;
+    for (let r = minR; r <= maxR; r++) {
+      for (let c = minC; c <= maxC; c++) {
+        if (!keys.has(kStr(r, c))) return false;
+      }
+    }
+    return true;
+  }
+
+  /** Each slot is an uncovered 1×1 anchor at (r,c) — safe to merge into one spanning ax. */
+  function cellsAreMergeableUnitRects(minR, maxR, minC, maxC, covered) {
+    for (let r = minR; r <= maxR; r++) {
+      for (let c = minC; c <= maxC; c++) {
+        const k = kStr(r, c);
+        if (covered.has(k)) return false;
+        const cell = getCell(r, c);
+        if (!cell) return false;
+        if (cell.row !== r || cell.col !== c) return false;
+        if (cell.rowspan !== 1 || cell.colspan !== 1) return false;
+      }
+    }
+    return true;
+  }
+
+  /** Merge bbox into one cell at top-left; other slots become empty 1×1 (covered by span). */
+  function mergeRectangleToCell(minR, maxR, minC, maxC) {
+    const seen = new Set();
+    const merged = [];
+    for (let r = minR; r <= maxR; r++) {
+      for (let c = minC; c <= maxC; c++) {
+        const cell = getCell(r, c);
+        for (const id of cell.data_ids) {
+          if (!seen.has(id)) {
+            seen.add(id);
+            merged.push(id);
+          }
+        }
+      }
+    }
+    const anchor = getCell(minR, minC);
+    anchor.row = minR;
+    anchor.col = minC;
+    anchor.rowspan = maxR - minR + 1;
+    anchor.colspan = maxC - minC + 1;
+    anchor.data_ids = merged;
+    for (let r = minR; r <= maxR; r++) {
+      for (let c = minC; c <= maxC; c++) {
+        if (r === minR && c === minC) continue;
+        _grid[r][c] = { row: r, col: c, rowspan: 1, colspan: 1, data_ids: [] };
+      }
+    }
+  }
+
   function focusInAnySelectedCell() {
     if (!_focusDataId || !_selectedKeys.size) return false;
     for (const key of _selectedKeys) {
@@ -198,6 +272,24 @@
   // ── Add to cell ───────────────────────────────────────────────────────────
   function addToCell() {
     if (!_focusDataId || _selectedKeys.size === 0) return;
+    const covered = coveredSet();
+    if (_selectedKeys.size >= 2 && isSolidRectangle(_selectedKeys)) {
+      const { minR, maxR, minC, maxC } = bboxOfKeys(_selectedKeys);
+      if (cellsAreMergeableUnitRects(minR, maxR, minC, maxC, covered)) {
+        mergeRectangleToCell(minR, maxR, minC, maxC);
+        const anchor = getCell(minR, minC);
+        if (anchor && !anchor.data_ids.includes(_focusDataId)) {
+          anchor.data_ids.push(_focusDataId);
+        }
+        const anchorKey = kStr(minR, minC);
+        _selectedKeys = new Set([anchorKey]);
+        _lastKey = anchorKey;
+        setStatus(`Merged ${maxR - minR + 1}×${maxC - minC + 1} cells → one subplot`);
+        renderGrid();
+        syncToolbar();
+        return;
+      }
+    }
     for (const key of _selectedKeys) {
       const [r, c] = kParse(key);
       const cell = getCell(r, c);
