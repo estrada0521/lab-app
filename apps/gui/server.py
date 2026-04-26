@@ -848,7 +848,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
 
 
 def _generate_plot_template() -> str:
-    # Generated script: square grid cells, black ink, axis labels only when data metadata has default_x & default_y.
+    # Generated script: square cells, black ink, optional axis labels from default_x/y, display_name titles, grid on, no legend.
     return '''import json
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -889,6 +889,16 @@ def _read_data_meta(data_id):
         return {}
 
 
+def _display_label(data_id):
+    d = _read_data_meta(data_id)
+    name = d.get("display_name")
+    if name is not None:
+        s = str(name).strip()
+        if s:
+            return s
+    return str(data_id)
+
+
 LINE_STYLES = ("-", "--", "-.", ":")
 
 for cell in grid["cells"]:
@@ -901,6 +911,8 @@ for cell in grid["cells"]:
         spine.set_color("black")
         spine.set_linewidth(0.8)
     ax.tick_params(axis="both", colors="black", labelsize=9)
+    ax.set_axisbelow(True)
+    ax.grid(True, linestyle="-", linewidth=0.45, color="#999999", alpha=0.55)
 
     axis_xlabel = None
     axis_ylabel = None
@@ -931,20 +943,14 @@ for cell in grid["cells"]:
             markevery=slice(0, None, step),
             markerfacecolor="black",
             markeredgecolor="black",
-            label=data_id,
         )
 
-    title = " / ".join(data_ids) or f"({row + 1},{col + 1})"
+    title = " / ".join(_display_label(d) for d in data_ids) if data_ids else f"({row + 1},{col + 1})"
     ax.set_title(title, fontsize=9, color="black")
     if axis_xlabel:
         ax.set_xlabel(axis_xlabel, fontsize=9, color="black")
     if axis_ylabel:
         ax.set_ylabel(axis_ylabel, fontsize=9, color="black")
-    if data_ids:
-        leg = ax.legend(frameon=False, fontsize=8)
-        if leg:
-            for t in leg.get_texts():
-                t.set_color("black")
 
 out = HERE / "output.png"
 fig.savefig(out, dpi=150, facecolor="white")
