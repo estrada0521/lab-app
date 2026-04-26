@@ -98,6 +98,18 @@
             const line = document.createElement("div");
             line.className = "as-cell-name";
             line.textContent = (_entriesIdx[did]?.display_name) || did;
+            line.title = did;
+            line.addEventListener("click", (ev) => {
+              ev.stopPropagation();
+              _selectedKeys.clear();
+              _selectedKeys.add(key);
+              _lastKey = key;
+              _focusDataId = did;
+              renderGrid();
+              renderDataList();
+              syncToolbar();
+              loadPreview(did);
+            });
             names.appendChild(line);
           }
         }
@@ -132,23 +144,50 @@
           if (!covered.has(k)) _selectedKeys.add(k);
         }
       }
+      _lastKey = key;
     } else if (e.metaKey) {
       if (_selectedKeys.has(key)) _selectedKeys.delete(key);
       else _selectedKeys.add(key);
       _lastKey = key;
     } else {
+      const [r, c] = kParse(key);
+      const cell = getCell(r, c);
+
       _selectedKeys.clear();
       _selectedKeys.add(key);
       _lastKey = key;
+
+      if (cell?.data_ids?.length) {
+        if (!_focusDataId || !cell.data_ids.includes(_focusDataId)) {
+          _focusDataId = cell.data_ids[0];
+        }
+        renderGrid();
+        renderDataList();
+        syncToolbar();
+        loadPreview(_focusDataId);
+        return;
+      }
     }
 
     renderGrid();
-    renderRightCellSection();
+    renderDataList();
+    syncToolbar();
   }
 
-  function syncPreviewChrome() {
+  function focusInAnySelectedCell() {
+    if (!_focusDataId || !_selectedKeys.size) return false;
+    for (const key of _selectedKeys) {
+      const [r, c] = kParse(key);
+      const cell = getCell(r, c);
+      if (cell?.data_ids?.includes(_focusDataId)) return true;
+    }
+    return false;
+  }
+
+  function syncToolbar() {
     const titleEl = document.getElementById("asPreviewTitle");
     const addBtn = document.getElementById("asAddBtn");
+    const delBtn = document.getElementById("asDeleteBtn");
     if (titleEl) {
       const label = _focusDataId
         ? ((_entriesIdx[_focusDataId]?.display_name) || _focusDataId)
@@ -157,71 +196,7 @@
       titleEl.title = _focusDataId ? String(_focusDataId) : "";
     }
     if (addBtn) addBtn.disabled = !_focusDataId || _selectedKeys.size === 0;
-  }
-
-  // ── Right pane: assigned data = one horizontal row; preview title + icon add ───
-  function renderRightCellSection() {
-    const listEl = document.getElementById("asCellLinksList");
-    const wrapEl = document.getElementById("asCellAssignWrap");
-    if (!listEl || !wrapEl) return;
-
-    listEl.innerHTML = "";
-
-    if (_selectedKeys.size === 0) {
-      wrapEl.hidden = true;
-      syncPreviewChrome();
-      return;
-    }
-
-    wrapEl.hidden = false;
-
-    const selCells = [..._selectedKeys]
-      .map(k => { const [r, c] = kParse(k); return getCell(r, c); })
-      .filter(Boolean);
-
-    const seen = new Set(selCells.flatMap(cell => cell.data_ids));
-
-    for (const did of seen) {
-      const item = document.createElement("span");
-      item.className = "as-cell-inline-item";
-
-      const pill = document.createElement("button");
-      pill.type = "button";
-      pill.className = "as-cell-pill" + (did === _focusDataId ? " is-active" : "");
-      pill.title = did;
-      pill.textContent = (_entriesIdx[did]?.display_name) || did;
-
-      const removeBtn = document.createElement("button");
-      removeBtn.type = "button";
-      removeBtn.className = "as-cell-pill-x";
-      removeBtn.setAttribute("aria-label", "Remove from cell");
-      removeBtn.title = "Remove";
-      removeBtn.textContent = "×";
-
-      pill.addEventListener("click", () => {
-        _focusDataId = did;
-        renderDataList();
-        renderRightCellSection();
-        loadPreview(did);
-      });
-
-      removeBtn.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        for (const cell of selCells) {
-          cell.data_ids = cell.data_ids.filter(d => d !== did);
-          if (!cell.data_ids.length) { cell.rowspan = 1; cell.colspan = 1; }
-        }
-        if (_focusDataId === did) _focusDataId = null;
-        renderGrid();
-        renderRightCellSection();
-      });
-
-      item.appendChild(pill);
-      item.appendChild(removeBtn);
-      listEl.appendChild(item);
-    }
-
-    syncPreviewChrome();
+    if (delBtn) delBtn.disabled = !focusInAnySelectedCell();
   }
 
   // ── Add to cell ───────────────────────────────────────────────────────────
@@ -235,7 +210,27 @@
       }
     }
     renderGrid();
-    renderRightCellSection();
+    syncToolbar();
+  }
+
+  function deleteFromCell() {
+    if (!focusInAnySelectedCell()) return;
+    const id = _focusDataId;
+    for (const key of _selectedKeys) {
+      const [r, c] = kParse(key);
+      const cell = getCell(r, c);
+      if (!cell) continue;
+      cell.data_ids = cell.data_ids.filter(d => d !== id);
+      if (!cell.data_ids.length) { cell.rowspan = 1; cell.colspan = 1; }
+    }
+    _focusDataId = null;
+    const graphEl = document.getElementById("asPreviewGraph");
+    const infoEl = document.getElementById("asPreviewInfo");
+    if (graphEl) graphEl.innerHTML = '<span class="as-hint">Click data from the list</span>';
+    if (infoEl) infoEl.innerHTML = "";
+    renderGrid();
+    renderDataList();
+    syncToolbar();
   }
 
   // ── Data list ─────────────────────────────────────────────────────────────
@@ -274,7 +269,7 @@
       btn.addEventListener("click", () => {
         _focusDataId = entry.id;
         renderDataList();
-        renderRightCellSection();
+        syncToolbar();
         loadPreview(entry.id);
       });
       container.appendChild(btn);
@@ -288,7 +283,7 @@
       container.appendChild(msg);
     }
 
-    syncPreviewChrome();
+    syncToolbar();
   }
 
   function populateFilters() {
@@ -333,7 +328,7 @@
     infoEl.innerHTML = "";
 
     const entry = _entriesIdx[dataId];
-    syncPreviewChrome();
+    syncToolbar();
     const metaPath = `data/${dataId}/metadata.json`;
     let meta = {};
     try {
@@ -409,17 +404,20 @@
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     svg.setAttribute("class", "as-sparkline");
+    const ink = "#1a1a1a";
+    const tick = "#444444";
     svg.innerHTML =
-      `<rect x="${PAD.left}" y="${PAD.top}" width="${iw}" height="${ih}" fill="none" stroke="var(--line)" stroke-width="1"/>` +
+      `<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>` +
+      `<rect x="${PAD.left}" y="${PAD.top}" width="${iw}" height="${ih}" fill="none" stroke="${tick}" stroke-width="1"/>` +
       xt.map(v =>
-        `<text x="${px(v).toFixed(1)}" y="${(PAD.top + ih + 12).toFixed(1)}" text-anchor="middle" font-size="9" fill="var(--muted)">${esc(fmt(v))}</text>`
+        `<text x="${px(v).toFixed(1)}" y="${(PAD.top + ih + 12).toFixed(1)}" text-anchor="middle" font-size="9" fill="${tick}">${esc(fmt(v))}</text>`
       ).join("") +
       yt.map(v =>
-        `<text x="${(PAD.left - 4).toFixed(1)}" y="${py(v).toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="9" fill="var(--muted)">${esc(fmt(v))}</text>`
+        `<text x="${(PAD.left - 4).toFixed(1)}" y="${py(v).toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="9" fill="${tick}">${esc(fmt(v))}</text>`
       ).join("") +
-      `<text x="${(PAD.left + iw / 2).toFixed(1)}" y="${H - 2}" text-anchor="middle" font-size="9" fill="var(--muted)">${esc(xLabel)}</text>` +
-      `<text transform="translate(10,${(PAD.top + ih / 2).toFixed(1)}) rotate(-90)" text-anchor="middle" font-size="9" fill="var(--muted)">${esc(yLabel)}</text>` +
-      `<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+      `<text x="${(PAD.left + iw / 2).toFixed(1)}" y="${H - 2}" text-anchor="middle" font-size="9" fill="${tick}">${esc(xLabel)}</text>` +
+      `<text transform="translate(10,${(PAD.top + ih / 2).toFixed(1)}) rotate(-90)" text-anchor="middle" font-size="9" fill="${tick}">${esc(yLabel)}</text>` +
+      `<path d="${path}" fill="none" stroke="${ink}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
     return svg;
   }
 
@@ -458,7 +456,7 @@
   async function init() {
     resizeGrid(2, 2);
     renderGrid();
-    renderRightCellSection();
+    syncToolbar();
 
     try {
       const [rawD, dataD] = await Promise.all([
@@ -490,17 +488,18 @@
       e.target.value = v;
       resizeGrid(v, _cols);
       renderGrid();
-      renderRightCellSection();
+      syncToolbar();
     });
     document.getElementById("asCols").addEventListener("change", e => {
       const v = Math.max(1, Math.min(8, parseInt(e.target.value) || 2));
       e.target.value = v;
       resizeGrid(_rows, v);
       renderGrid();
-      renderRightCellSection();
+      syncToolbar();
     });
 
     document.getElementById("asAddBtn").addEventListener("click", addToCell);
+    document.getElementById("asDeleteBtn").addEventListener("click", deleteFromCell);
     document.getElementById("asStartBtn").addEventListener("click", doStart);
 
     document.getElementById("asStartBtn").disabled = _entries.length === 0;

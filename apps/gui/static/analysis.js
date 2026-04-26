@@ -265,6 +265,8 @@ initPaneResize({
 });
 
 analysisSidePanelSelect?.addEventListener("change", () => setSidePanel(analysisSidePanelSelect.value));
+
+
 setSidePanel("info");
 loadAnalyses().catch(err => setStatus(err.message, true));
 

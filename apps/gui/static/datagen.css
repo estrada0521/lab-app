@@ -1727,8 +1727,17 @@ body.catalog-page {
 .as-cell.as-cell-has-data {
   border-color: rgba(255,255,255,0.12);
 }
-.as-cell-names { display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; }
-.as-cell-name { font-size:13px; font-weight:500; color:var(--text); word-break:break-word; }
+.as-cell-name {
+  font-size: var(--theme-text-size);
+  font-weight: 500;
+  color: var(--text);
+  word-break: break-word;
+  text-align: center;
+  line-height: 1.35;
+  max-width: 100%;
+  cursor: pointer;
+}
+
 .as-cell-pos { font-size:10px; color:var(--muted); position:absolute; bottom:5px; right:8px; font-family:monospace; pointer-events:none; opacity:0.6; }
 
 /* right panel header (display name + start button) at top */
@@ -1754,7 +1763,7 @@ body.catalog-page {
   flex-shrink: 0;
 }
 
-/* right panel: fixed-height cell strip + preview head + fixed graph + scrolling info */
+/* right panel: preview head + fixed graph + scrolling info */
 .as-right-scroll {
   flex: 1 1 auto;
   min-height: 0;
@@ -1765,92 +1774,15 @@ body.catalog-page {
   padding: 0 0 8px;
 }
 
-.as-cell-assign-wrap {
-  flex: 0 0 auto;
+.as-cell-names {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-height: 0;
-}
-
-.as-cell-head-scroll {
-  flex: 0 0 auto;
-  height: 32px;
-  min-height: 32px;
-  max-height: 32px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-}
-
-.as-cell-links-inline {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  width: max-content;
-  min-width: 100%;
-  padding: 0 2px;
-  box-sizing: border-box;
-}
-
-.as-cell-inline-item {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.as-cell-pill {
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 4px 9px;
-  font-size: 12px;
-  font-weight: 500;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
-  color: var(--text);
-  cursor: pointer;
-  font: inherit;
-  line-height: 1.2;
-  transition: border-color 0.12s, background 0.12s;
-}
-
-.as-cell-pill:hover {
-  border-color: var(--line-strong);
-}
-
-.as-cell-pill.is-active {
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
-  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
-}
-
-.as-cell-pill-x {
-  flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.12s, background 0.12s;
-}
-
-.as-cell-pill-x:hover {
-  color: var(--warn, #d63030);
-  background: var(--row-hover);
+  gap: 5px;
+  text-align: center;
+  min-width: 0;
+  width: 100%;
 }
 
 .as-preview-head-row {
@@ -1873,8 +1805,43 @@ body.catalog-page {
   line-height: 1.25;
 }
 
+.as-preview-head-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.as-icon-delete-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, #e55353 40%, var(--line));
+  border-radius: 6px;
+  background: color-mix(in srgb, #e55353 10%, var(--panel));
+  color: #e55353;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.06);
+  transition: color 0.12s, border-color 0.12s, background 0.12s, opacity 0.12s;
+}
+
+.as-icon-delete-btn:hover:not(:disabled) {
+  color: #ff6b6b;
+  border-color: color-mix(in srgb, #e55353 55%, var(--line));
+  background: color-mix(in srgb, #e55353 18%, var(--panel));
+}
+
+.as-icon-delete-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
 .as-icon-add-btn {
-  flex: 0 0 auto;
   width: 28px;
   height: 28px;
   padding: 0;
@@ -1904,8 +1871,8 @@ body.catalog-page {
 
 .as-divider { height: 1px; background: var(--line); flex-shrink: 0; }
 
-/* square plot: fixed logical size, shrinks only with pane width */
-.as-preview-graph {
+/* square plot: light theme (white field + black strokes) */
+.new-analysis-page .as-preview-graph {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -1914,6 +1881,14 @@ body.catalog-page {
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   box-sizing: border-box;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.new-analysis-page .as-preview-graph .as-hint {
+  color: #555;
+  padding: 8px;
+  text-align: center;
 }
 
 .as-preview-graph .as-sparkline {
@@ -1924,11 +1899,20 @@ body.catalog-page {
 
 .as-sparkline { width: 100%; height: auto; display: block; }
 
-.as-preview-body-scroll {
+/* vertical scrollbar on the physical left (near window when pane is right-docked) */
+.new-analysis-page .as-preview-body-scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  direction: rtl;
+  scrollbar-gutter: stable;
+}
+
+.new-analysis-page .as-preview-info-ltr {
+  direction: ltr;
+  text-align: left;
+  min-height: min-content;
 }
 
 .as-preview-info {
