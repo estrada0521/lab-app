@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Layout view</title>
+  <link rel="stylesheet" href="/static/theme.css?v=__STATIC_VERSION__">
+  <link rel="stylesheet" href="/static/lab.css?v=__STATIC_VERSION__">
+</head>
+<body class="layout-view-page" data-page="layout-view">
+  <main class="layout-view-main">
+    <header class="layout-view-head">
+      <div class="page-menu-wrap layout-view-menu">
+        <button class="page-menu-btn" id="pageMenuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="pageMenuPopover">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2.5 4H13.5"/><path d="M2.5 8H13.5"/><path d="M2.5 12H13.5"/></svg>
+        </button>
+        <div class="page-menu-popover" id="pageMenuPopover" hidden>
+          <a class="page-menu-link" href="/">Workspace</a>
+          <a class="page-menu-link" href="/layout/">Layout</a>
+          <a class="page-menu-link current" href="/layout-view/">Layout view</a>
+          <a class="page-menu-link" href="/samples/">Samples</a>
+          <a class="page-menu-link" href="/calculators/">Calculators</a>
+          <a class="page-menu-link" href="/experiments/">Experiments</a>
+          <a class="page-menu-link" href="/analysis/">Analysis</a>
+          <a class="page-menu-link" href="/build/">Build</a>
+        </div>
+      </div>
+      <div class="layout-view-title">Layout view</div>
+      <div class="layout-view-actions">
+        <a href="/layout/" title="Edit layout">Edit</a>
+        <button id="lvReloadBtn" type="button" title="Reload from localStorage">Reload</button>
+      </div>
+    </header>
+
+    <section class="layout-view-grid-wrap" aria-label="GridSpec layout view">
+      <div id="lvGrid" class="layout-view-grid"></div>
+    </section>
+
+    <div class="footer">
+      <span class="status" id="lvStatus"></span>
+    </div>
+  </main>
+
+  <script src="/static/page_menu.js?v=__STATIC_VERSION__"></script>
+  <script src="/static/layout_view.js?v=__STATIC_VERSION__"></script>
+</body>
+</html>
+

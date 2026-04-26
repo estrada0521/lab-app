@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Layout</title>
+  <link rel="stylesheet" href="/static/theme.css?v=__STATIC_VERSION__">
+  <link rel="stylesheet" href="/static/lab.css?v=__STATIC_VERSION__">
+</head>
+<body class="layout-page" data-page="layout">
+  <main class="layout-main">
+    <div class="page-menu-wrap">
+      <button class="page-menu-btn" id="pageMenuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="pageMenuPopover">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2.5 4H13.5"/><path d="M2.5 8H13.5"/><path d="M2.5 12H13.5"/></svg>
+      </button>
+      <div class="page-menu-popover" id="pageMenuPopover" hidden>
+        <a class="page-menu-link" href="/">Workspace</a>
+        <a class="page-menu-link current" href="/layout/">Layout</a>
+        <a class="page-menu-link" href="/layout-view/">Layout view</a>
+        <a class="page-menu-link" href="/samples/">Samples</a>
+        <a class="page-menu-link" href="/calculators/">Calculators</a>
+        <a class="page-menu-link" href="/experiments/">Experiments</a>
+        <a class="page-menu-link" href="/analysis/">Analysis</a>
+        <a class="page-menu-link" href="/build/">Build</a>
+      </div>
+    </div>
+
+    <div class="layout-fab" role="group" aria-label="Layout controls">
+      <label class="layout-mini-field">
+        <span>rows</span>
+        <input id="gsRows" type="number" min="1" max="32" step="1" value="2">
+      </label>
+      <label class="layout-mini-field">
+        <span>cols</span>
+        <input id="gsCols" type="number" min="1" max="32" step="1" value="2">
+      </label>
+      <button id="gsApplyBtn" type="button">Apply</button>
+      <button id="gsExportBtn" type="button">Export JSON</button>
+      <button id="gsClearBtn" type="button">Clear</button>
+    </div>
+
+    <section class="layout-board-wrap" id="gsWrap" aria-label="GridSpec board">
+      <div class="layout-board" tabindex="0">
+        <div id="gsGrid" class="gs-grid" aria-hidden="false"></div>
+        <div id="gsOverlay" class="gs-overlay" aria-hidden="false"></div>
+      </div>
+      <div id="gsHint" class="layout-hint">
+        workspaceの <b>data</b> をここにドロップします（セルに入ります）。<br>
+        複数セルをまとめたい場合はドラッグで矩形選択 → <b>Enter</b> でエリア作成。
+      </div>
+    </section>
+
+    <div class="footer">
+      <span class="status" id="gsStatus"></span>
+    </div>
+  </main>
+
+  <script src="/static/page_menu.js?v=__STATIC_VERSION__"></script>
+  <script src="/static/layout.js?v=__STATIC_VERSION__"></script>
+</body>
+</html>
+
