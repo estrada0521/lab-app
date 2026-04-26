@@ -204,16 +204,21 @@ function renderDetail(detail) {
   if (detail.images && detail.images.length) {
     html += `<div class="analysis-section-label">Outputs</div><div class="analysis-images">`;
     for (const imgPath of detail.images) {
-      html += `<figure class="analysis-figure">
-        <a href="/api/repo-file?path=${encodeURIComponent(imgPath)}" target="_blank">
-          <img src="/api/repo-file?path=${encodeURIComponent(imgPath)}" alt="${escapeHtml(imgPath.split("/").pop())}" loading="lazy">
-        </a>
+      html += `<figure class="analysis-figure analysis-figure--external" data-repo-path="${escapeHtml(imgPath)}">
+        <img src="/api/repo-file?path=${encodeURIComponent(imgPath)}" alt="${escapeHtml(imgPath.split("/").pop())}" loading="lazy">
         <figcaption>${escapeHtml(imgPath.split("/").pop())}</figcaption>
       </figure>`;
     }
     html += `</div>`;
   }
   analysisBody.innerHTML = html;
+  analysisBody.querySelectorAll(".analysis-figure--external[data-repo-path]").forEach(fig => {
+    const p = fig.getAttribute("data-repo-path");
+    if (!p || !window.openRepoFileExternally) return;
+    fig.addEventListener("click", () => {
+      window.openRepoFileExternally(p).catch(err => setStatus(err.message, true));
+    });
+  });
 
   // Links panel: DATA block + unique RAWDATA block
   const rawdataSet = new Set();

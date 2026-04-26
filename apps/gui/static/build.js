@@ -226,10 +226,8 @@ function renderDetail(detail) {
   if (detail.images && detail.images.length) {
     html += `<div class="analysis-section-label">Images</div><div class="analysis-images">`;
     for (const imgPath of detail.images) {
-      html += `<figure class="analysis-figure">
-        <a href="/api/repo-file?path=${encodeURIComponent(imgPath)}" target="_blank">
-          <img src="/api/repo-file?path=${encodeURIComponent(imgPath)}" alt="${escapeHtml(imgPath.split("/").pop())}" loading="lazy">
-        </a>
+      html += `<figure class="analysis-figure analysis-figure--external" data-repo-path="${escapeHtml(imgPath)}">
+        <img src="/api/repo-file?path=${encodeURIComponent(imgPath)}" alt="${escapeHtml(imgPath.split("/").pop())}" loading="lazy">
         <figcaption>${escapeHtml(imgPath.split("/").pop())}</figcaption>
       </figure>`;
     }
@@ -239,6 +237,13 @@ function renderDetail(detail) {
   const hasPdf = detail.output_files && detail.output_files.some(f => f.suffix === ".pdf" && f.exists);
   buildBody.classList.toggle("has-pdf", Boolean(hasPdf));
   buildBody.innerHTML = html;
+  buildBody.querySelectorAll(".analysis-figure--external[data-repo-path]").forEach(fig => {
+    const p = fig.getAttribute("data-repo-path");
+    if (!p || !window.openRepoFileExternally) return;
+    fig.addEventListener("click", () => {
+      window.openRepoFileExternally(p).catch(err => setStatus(err.message, true));
+    });
+  });
 
   let missingCount = 0;
   const analysisLinks = (detail.source_analysis || []).map(src => {

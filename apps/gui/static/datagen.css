@@ -1342,6 +1342,9 @@ body.catalog-page {
   align-items: center;
   gap: 16px;
 }
+.analysis-figure--external {
+  cursor: pointer;
+}
 .analysis-figure {
   margin: 0;
   display: flex;
@@ -1659,6 +1662,19 @@ body.catalog-page {
 }
 .attachment-item {
   display: flex;
+}
+.attachment-item--openable {
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+  padding: 3px 4px;
+  border-radius: 4px;
+  min-width: 0;
+  cursor: pointer;
+}
+.attachment-item--openable:hover {
+  background: var(--row-hover);
 }
 .attachment-link {
   display: flex;

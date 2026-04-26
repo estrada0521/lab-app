@@ -200,9 +200,18 @@ async function selectRecord(id) {
       recordMainImage.src = `/api/repo-file?path=${encodeURIComponent(imgPath)}`;
       recordMainImage.alt = payload.id || id;
       recordImageWrap.hidden = false;
+      recordMainImage.style.cursor = "pointer";
+      recordMainImage.title = "Open with default app";
+      recordMainImage.onclick = () => {
+        if (!window.openRepoFileExternally) return;
+        window.openRepoFileExternally(imgPath).catch(err => setStatus(err.message, true));
+      };
     } else {
       recordImageWrap.hidden = true;
       recordMainImage.src = "";
+      recordMainImage.style.cursor = "";
+      recordMainImage.title = "";
+      recordMainImage.onclick = null;
     }
   }
 
