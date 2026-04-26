@@ -232,6 +232,7 @@ def _format_ax_spec_list_entry(
 
 _PLOT_PY_TAIL = """
 # --- 以下の定数・描画ループの役割（必要に応じて編集してください）---
+# 先頭付近の apply_matplotlib_preset … 全 ax 共通の rc（フォント・目盛り・グリッド等）。個別の軸ラベルや lim は _AX_SPECS で編集。
 # LINE_STYLES … 1 つのサブプロットに複数の data 系列を重ねるとき、線種を順に切り替えるためのタプル。
 # for cfg in _AX_SPECS: … ループ … _AX_SPECS の各要素を 1 サブプロットとして、CSV から列を取り出して描画する（サブプロットのタイトルは cfg["title"]）。
 # legend_labels / line_colors … 生成時に各 data の metadata.conditions.fixed の値だけ等から埋め込んだもの（分析 metadata には書かない）。
@@ -258,12 +259,14 @@ for cfg in _AX_SPECS:
         spine.set_linewidth(0.8)
     ax.tick_params(axis="both", colors="black", labelsize=9)
     ax.set_axisbelow(True)
-    ax.grid(True, linestyle="-", linewidth=0.45, color="#999999", alpha=0.55)
 
     data_ids = cfg["data_ids"]
     if not data_ids:
         ax.set_axis_off()
         continue
+
+    ax.minorticks_on()
+    ax.grid(True, which="both")
 
     x_col, y_col = cfg["x_col"], cfg["y_col"]
     x_label, y_label = cfg["x_label"], cfg["y_label"]
@@ -334,12 +337,24 @@ def generate_plot_py(root: Path, rows: int, cols: int, cells: list) -> str:
         "# plot.py — starting point only; edit constants and plotting logic freely.\n"
         "# data id SoT: metadata.json → \"source_data\" (this script does not read that file).\n"
     )
+    lines.append("import sys\n")
     lines.append("from pathlib import Path\n\n")
-    lines.append("import pandas as pd\n")
     lines.append("import matplotlib.pyplot as plt\n")
+    lines.append("import pandas as pd\n")
     lines.append("from matplotlib.gridspec import GridSpec\n\n")
-    lines.append("HERE = Path(__file__).parent\n")
+    lines.append("HERE = Path(__file__).resolve().parent\n")
     lines.append("DB_ROOT = HERE.parents[1]\n\n")
+    lines.append(
+        "# ---- 全 ax 共通の Matplotlib スタイル（lab の plot_runtime / 将来はテンプレ切替想定）----\n"
+        "try:\n"
+        "    _pr = DB_ROOT / \"apps\" / \"gui\" / \"analysis\" / \"plot_runtime\"\n"
+        "    if _pr.is_dir():\n"
+        "        sys.path.insert(0, str(DB_ROOT))\n"
+        "        from apps.gui.analysis.plot_runtime import apply_matplotlib_preset\n\n"
+        "        apply_matplotlib_preset(\"default\")\n"
+        "except Exception:\n"
+        "    pass\n\n"
+    )
     lines.append("# ---- figure layout (edit) ----\n")
     lines.append(f"ROWS = {rows}\n")
     lines.append(f"COLS = {cols}\n")
