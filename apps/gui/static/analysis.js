@@ -168,6 +168,13 @@ async function selectProject(id) {
   renderDetail(detail);
   loadAndRenderAttachments(document.getElementById("attachmentsSection"), "analysis", id);
   setStatus("");
+  requestAnimationFrame(() => {
+    window.dispatchEvent(new Event("resize"));
+    analysisBody.querySelectorAll(".analysis-images img").forEach(img => {
+      img.loading = "eager";
+      if (img.decode) img.decode().catch(() => {});
+    });
+  });
 }
 
 function wsLinkItem(href, text, sub = "") {
@@ -205,7 +212,7 @@ function renderDetail(detail) {
     html += `<div class="analysis-section-label">Outputs</div><div class="analysis-images">`;
     for (const imgPath of detail.images) {
       html += `<figure class="analysis-figure analysis-figure--external" data-repo-path="${escapeHtml(imgPath)}">
-        <img src="/api/repo-file?path=${encodeURIComponent(imgPath)}" alt="${escapeHtml(imgPath.split("/").pop())}" loading="lazy">
+        <img src="/api/repo-file?path=${encodeURIComponent(imgPath)}" alt="${escapeHtml(imgPath.split("/").pop())}" loading="eager" decoding="async">
         <figcaption>${escapeHtml(imgPath.split("/").pop())}</figcaption>
       </figure>`;
     }

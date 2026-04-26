@@ -8,11 +8,16 @@ from __future__ import annotations
 import matplotlib as mpl
 
 # https://matplotlib.org/stable/users/explain/customizing.html
+# 目盛り線は上下左右（ラベルは既定のまま bottom / left が主）。
 RCPARAMS: dict[str, object] = {
     "font.family": "sans-serif",
     "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans", "sans-serif"],
     "xtick.direction": "in",
     "ytick.direction": "in",
+    "xtick.top": True,
+    "xtick.bottom": True,
+    "ytick.left": True,
+    "ytick.right": True,
     "xtick.minor.visible": True,
     "ytick.minor.visible": True,
     "xtick.major.size": 3.5,

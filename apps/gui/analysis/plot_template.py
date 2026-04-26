@@ -260,7 +260,16 @@ for cfg in _AX_SPECS:
     for spine in ax.spines.values():
         spine.set_color("black")
         spine.set_linewidth(0.8)
-    ax.tick_params(axis="both", colors="black", labelsize=9)
+    ax.tick_params(
+        axis="both",
+        which="both",
+        top=True,
+        bottom=True,
+        left=True,
+        right=True,
+        colors="black",
+        labelsize=9,
+    )
     ax.set_axisbelow(True)
 
     data_ids = cfg["data_ids"]
