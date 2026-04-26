@@ -242,15 +242,47 @@ function renderDetail(detail) {
   memoPanel.load({kind: "analysis", id: detail.id}).catch(err => setStatus(err.message, true));
 }
 
+/** After New Analysis: wait for plot.py to write output.png (or any image), then open in a new tab. */
+async function waitAndOpenFirstOutputImage(projectId) {
+  const maxAttempts = 40;
+  const intervalMs = 350;
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const detail = await apiJson(`/api/analysis?id=${encodeURIComponent(projectId)}`);
+      const imgs = detail.images || [];
+      if (imgs.length) {
+        const pick = imgs.find(p => /(^|\/)output\.png$/i.test(p)) || imgs[0];
+        window.open(`/api/repo-file?path=${encodeURIComponent(pick)}`, "_blank", "noopener,noreferrer");
+        return;
+      }
+    } catch (_) {
+      /* keep polling until timeout */
+    }
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+}
+
 async function loadAnalyses() {
   setStatus("Loading…");
   const [payload, configPayload] = await Promise.all([apiJson("/api/analyses"), apiJson("/api/config")]);
   dbRoot = configPayload.db_root || "";
   entries = payload.entries || [];
+  const params = new URLSearchParams(location.search);
+  const paramId = params.get("id");
+  const openOutput = params.get("open_output") === "1" || params.get("open_output") === "true";
+  if (paramId && openOutput && !entries.some(e => e.id === paramId)) {
+    await new Promise(r => setTimeout(r, 200));
+    const again = await apiJson("/api/analyses");
+    entries = again.entries || [];
+  }
   renderList(entries);
-  const paramId = new URLSearchParams(location.search).get("id");
   const initialId = paramId && entries.some(e => e.id === paramId) ? paramId : (entries[0]?.id || null);
   if (initialId) await selectProject(initialId);
+  if (openOutput && initialId) {
+    setStatus("Waiting for plot output…");
+    await waitAndOpenFirstOutputImage(initialId);
+    history.replaceState(null, "", `/analysis/?id=${encodeURIComponent(initialId)}`);
+  }
   setStatus("");
 }
 

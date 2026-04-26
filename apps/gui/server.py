@@ -831,7 +831,7 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 plot_path.write_text(generate_plot_py(self.server.db_root, rows, cols, cells), encoding="utf-8")
                 subprocess.Popen([sys.executable, str(plot_path)], cwd=str(record_dir))
                 try:
-                    subprocess.Popen(["open", "-a", "Visual Studio Code", str(plot_path)])
+                    subprocess.Popen(["open", "-a", "Antigravity", str(plot_path)])
                 except Exception:
                     pass
                 self.send_json({"id": new_id, "path": f"analysis/{new_id}"})

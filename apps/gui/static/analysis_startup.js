@@ -450,8 +450,11 @@
       });
       const d = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(d.error || resp.statusText);
-      setStatus(`Created ${d.id} — opening VS Code…`);
-      setTimeout(() => { window.location.href = "/analysis/"; }, 1200);
+      setStatus(`Created ${d.id} — opening Antigravity…`);
+      const q = new URLSearchParams({ id: d.id, open_output: "1" });
+      setTimeout(() => {
+        window.location.href = `/analysis/?${q}`;
+      }, 400);
     } catch (err) {
       setStatus(err.message, true);
       btn.disabled = false;
