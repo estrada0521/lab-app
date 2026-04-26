@@ -804,15 +804,20 @@ class DatParserHandler(BaseHTTPRequestHandler):
                 rows = int(grid_data.get("rows", 2))
                 cols = int(grid_data.get("cols", 2))
                 cells = [c for c in grid_data.get("cells", []) if isinstance(c, dict)]
+                grid_err = _validate_analysis_grid_cells(self.server.db_root, cells)
+                if grid_err:
+                    self.send_json({"error": grid_err}, HTTPStatus.BAD_REQUEST)
+                    return
                 analysis_dir = self.server.db_root / "analysis"
                 analysis_dir.mkdir(exist_ok=True)
                 new_id = _next_available_id(analysis_dir)
                 record_dir = analysis_dir / new_id
                 record_dir.mkdir(parents=True, exist_ok=False)
+                source_data = _analysis_source_data_ids_from_cells(cells)
                 meta = {
-                    "id": new_id,
                     "display_name": display_name or new_id,
-                    "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
+                    "created_at": datetime.datetime.now().isoformat(timespec="milliseconds"),
+                    "source_data": source_data,
                     "grid": {"rows": rows, "cols": cols, "cells": cells},
                 }
                 (record_dir / "metadata.json").write_text(
@@ -847,8 +852,84 @@ class DatParserHandler(BaseHTTPRequestHandler):
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
 
 
+def _analysis_source_data_ids_from_cells(cells: list) -> list[str]:
+    """Stable unique list of data ids from New Analysis grid cells (row/col order in payload)."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for c in cells:
+        if not isinstance(c, dict):
+            continue
+        for did in c.get("data_ids") or []:
+            s = str(did).strip()
+            if not s or s in seen:
+                continue
+            seen.add(s)
+            out.append(s)
+    return out
+
+
+def _meta_default_axis_key(meta: dict, key: str) -> str | None:
+    v = meta.get(key)
+    if v is None:
+        return None
+    s = str(v).strip()
+    return s or None
+
+
+def _data_csv_header_columns(csv_path: Path) -> list[str]:
+    import csv as _csv
+
+    try:
+        with open(csv_path, encoding="utf-8") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or line.startswith("#"):
+                    continue
+                return [c.strip() for c in next(_csv.reader([line]))]
+    except (OSError, StopIteration, ValueError, _csv.Error):
+        return []
+
+
+def _validate_analysis_grid_cells(root: Path, cells: list) -> str | None:
+    """Reject invalid multi-dataset cells. Return human-readable error or None."""
+    for c in cells:
+        if not isinstance(c, dict):
+            continue
+        ids = [str(x).strip() for x in (c.get("data_ids") or []) if str(x).strip()]
+        if len(ids) <= 1:
+            continue
+        pairs: list[tuple[str, str]] = []
+        for data_id in ids:
+            csv_path = root / "data" / data_id / f"{data_id}.csv"
+            meta_path = root / "data" / data_id / "metadata.json"
+            if not csv_path.exists():
+                return f'data "{data_id}" に CSV がありません。'
+            if not meta_path.exists():
+                return (
+                    "1 つのセルに複数の data を入れる場合、各 data の metadata.json に "
+                    f'default_x / default_y が必要です（欠け: "{data_id}"）。'
+                )
+            try:
+                dm = json.loads(meta_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                return f'data "{data_id}" の metadata が読めません（{exc}）。'
+            dx = _meta_default_axis_key(dm, "default_x")
+            dy = _meta_default_axis_key(dm, "default_y")
+            if not dx or not dy:
+                return "1 つのセルに複数の data があるときは、各 data の default_x と default_y の両方を metadata に指定してください。"
+            cols = _data_csv_header_columns(csv_path)
+            if dx not in cols or dy not in cols:
+                return f'data "{data_id}" の CSV に default で指定した列（{dx!r}, {dy!r}）がありません。'
+            pairs.append((dx, dy))
+        if len({p[0] for p in pairs}) != 1:
+            return "1 つのセルに複数の data があるとき、すべて同じ default_x（列名）である必要があります。"
+        if len({p[1] for p in pairs}) != 1:
+            return "1 つのセルに複数の data があるとき、すべて同じ default_y（列名）である必要があります。"
+    return None
+
+
 def _generate_plot_template() -> str:
-    # Generated script: square cells, black ink, optional axis labels from default_x/y, display_name titles, grid on, no legend.
+    # Uses meta["grid"] so subplot layout matches New Analysis; dpi=300.
     return '''import json
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -914,24 +995,28 @@ for cell in grid["cells"]:
     ax.set_axisbelow(True)
     ax.grid(True, linestyle="-", linewidth=0.45, color="#999999", alpha=0.55)
 
+    data_ids = cell.get("data_ids", [])
     axis_xlabel = None
     axis_ylabel = None
-    data_ids = cell.get("data_ids", [])
     for i, data_id in enumerate(data_ids):
         csv_path = DB_ROOT / "data" / data_id / f"{data_id}.csv"
         df = pd.read_csv(csv_path, comment="#")
         dmeta = _read_data_meta(data_id)
         dx = _meta_col(dmeta, "default_x")
         dy = _meta_col(dmeta, "default_y")
-        if dx and dy and dx in df.columns and dy in df.columns:
+        if len(data_ids) == 1:
+            if dx and dy and dx in df.columns and dy in df.columns:
+                xs, ys = df[dx], df[dy]
+                axis_xlabel, axis_ylabel = str(dx), str(dy)
+            else:
+                xs, ys = df.iloc[:, 0], df.iloc[:, 1]
+        else:
             xs, ys = df[dx], df[dy]
             if axis_xlabel is None:
                 axis_xlabel, axis_ylabel = str(dx), str(dy)
-        else:
-            xs, ys = df.iloc[:, 0], df.iloc[:, 1]
         sty = LINE_STYLES[i % len(LINE_STYLES)]
-        n = max(len(xs), 1)
-        step = max(1, n // 80)
+        pt = max(len(xs), 1)
+        step = max(1, pt // 80)
         ax.plot(
             xs,
             ys,
@@ -953,7 +1038,7 @@ for cell in grid["cells"]:
         ax.set_ylabel(axis_ylabel, fontsize=9, color="black")
 
 out = HERE / "output.png"
-fig.savefig(out, dpi=150, facecolor="white")
+fig.savefig(out, dpi=300, facecolor="white")
 plt.close(fig)
 print(f"Saved: {out}")
 '''
