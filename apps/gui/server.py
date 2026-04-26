@@ -818,13 +818,12 @@ class DatParserHandler(BaseHTTPRequestHandler):
                     "display_name": display_name or new_id,
                     "created_at": datetime.datetime.now().isoformat(timespec="milliseconds"),
                     "source_data": source_data,
-                    "grid": {"rows": rows, "cols": cols, "cells": cells},
                 }
                 (record_dir / "metadata.json").write_text(
                     json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
                 )
                 plot_path = record_dir / "plot.py"
-                plot_path.write_text(_generate_plot_template(), encoding="utf-8")
+                plot_path.write_text(_generate_plot_py(self.server.db_root, rows, cols, cells), encoding="utf-8")
                 subprocess.Popen([sys.executable, str(plot_path)], cwd=str(record_dir))
                 try:
                     subprocess.Popen(["open", "-a", "Visual Studio Code", str(plot_path)])
@@ -928,64 +927,113 @@ def _validate_analysis_grid_cells(root: Path, cells: list) -> str | None:
     return None
 
 
-def _generate_plot_template() -> str:
-    # Uses meta["grid"] so subplot layout matches New Analysis; dpi=300.
-    return '''import json
-import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
-from pathlib import Path
-
-HERE = Path(__file__).parent
-DB_ROOT = HERE.parents[1]
-meta = json.loads((HERE / "metadata.json").read_text(encoding="utf-8"))
-
-grid = meta["grid"]
-rows = int(grid["rows"])
-cols = int(grid["cols"])
-cell_in = 3.0
-fig = plt.figure(
-    figsize=(cell_in * cols, cell_in * rows),
-    facecolor="white",
-    constrained_layout=True,
-)
-gs = GridSpec(rows, cols, figure=fig)
-
-
-def _meta_col(d, key):
-    v = d.get(key)
-    if v is None:
-        return None
-    s = str(v).strip()
-    return s or None
-
-
-def _read_data_meta(data_id):
-    p = DB_ROOT / "data" / data_id / "metadata.json"
-    if not p.exists():
-        return {}
-    try:
-        return json.loads(p.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
+def _plot_cell_hardcode_defaults(root: Path, data_ids: list[str]) -> tuple[list[str], str | None, str | None, str, str, str, float, str]:
+    """Initial values for plot.py constants (single source at generation time; user edits plot.py freely)."""
+    line_color = "black"
+    linewidth = 1.2
+    marker = "o"
+    if not data_ids:
+        return [], None, None, "", "", line_color, linewidth, marker
+    if len(data_ids) == 1:
+        did = data_ids[0]
+        csv_path = root / "data" / did / f"{did}.csv"
+        meta_path = root / "data" / did / "metadata.json"
+        dm: dict = {}
+        if meta_path.exists():
+            try:
+                dm = json.loads(meta_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                dm = {}
+        dx = _meta_default_axis_key(dm, "default_x")
+        dy = _meta_default_axis_key(dm, "default_y")
+        cols = _data_csv_header_columns(csv_path)
+        if dx and dy and dx in cols and dy in cols:
+            return [did], dx, dy, str(dx), str(dy), line_color, linewidth, marker
+        return [did], None, None, "", "", line_color, linewidth, marker
+    first = data_ids[0]
+    mp = root / "data" / first / "metadata.json"
+    dm = json.loads(mp.read_text(encoding="utf-8")) if mp.exists() else {}
+    dx = _meta_default_axis_key(dm, "default_x")
+    dy = _meta_default_axis_key(dm, "default_y")
+    return list(data_ids), dx, dy, str(dx or ""), str(dy or ""), line_color, linewidth, marker
 
 
-def _display_label(data_id):
-    d = _read_data_meta(data_id)
-    name = d.get("display_name")
-    if name is not None:
-        s = str(name).strip()
-        if s:
-            return s
+def _analysis_data_display_name(root: Path, data_id: str) -> str:
+    mp = root / "data" / data_id / "metadata.json"
+    if mp.exists():
+        try:
+            dm = json.loads(mp.read_text(encoding="utf-8"))
+            raw = dm.get("display_name")
+            if raw is not None:
+                s = str(raw).strip()
+                if s:
+                    return s
+        except (OSError, json.JSONDecodeError):
+            pass
     return str(data_id)
 
 
+def _plot_cell_title(root: Path, data_ids: list[str], r: int, c0: int) -> str:
+    if not data_ids:
+        return f"({r + 1},{c0 + 1})"
+    return " / ".join(_analysis_data_display_name(root, d) for d in data_ids)
+
+
+def _format_ax_spec_list_entry(
+    r: int,
+    c0: int,
+    rs: int,
+    cs_: int,
+    ids: list[str],
+    x_col: str | None,
+    y_col: str | None,
+    x_lab: str,
+    y_lab: str,
+    line_color: str,
+    linewidth: float,
+    marker: str,
+    title: str,
+) -> str:
+    """One element of _AX_SPECS as a JSON-like indented dict (valid Python)."""
+    return (
+        "    {\n"
+        f'        "ax": [{r + 1}, {c0 + 1}],\n'
+        f'        "row": {r},\n'
+        f'        "col": {c0},\n'
+        f'        "rowspan": {rs},\n'
+        f'        "colspan": {cs_},\n'
+        f'        "data_ids": {repr(ids)},\n'
+        f'        "x_col": {repr(x_col)},\n'
+        f'        "y_col": {repr(y_col)},\n'
+        f'        "x_label": {repr(x_lab)},\n'
+        f'        "y_label": {repr(y_lab)},\n'
+        f'        "line_color": {repr(line_color)},\n'
+        f'        "linewidth": {repr(linewidth)},\n'
+        f'        "marker": {repr(marker)},\n'
+        f'        "title": {repr(title)},\n'
+        "    },\n"
+    )
+
+
+_PLOT_PY_TAIL = """
+# --- 以下の定数・描画ループの役割（必要に応じて編集してください）---
+# LINE_STYLES … 1 つのサブプロットに複数の data 系列を重ねるとき、線種を順に切り替えるためのタプル。
+# for cfg in _AX_SPECS: … ループ … _AX_SPECS の各要素を 1 サブプロットとして、CSV から列を取り出して描画する（サブプロットのタイトルは cfg["title"]）。
+# savefig / plt.close … 画像 output.png を書き出して終了する。
+
 LINE_STYLES = ("-", "--", "-.", ":")
 
-for cell in grid["cells"]:
-    row, col = cell["row"], cell["col"]
-    rs = cell.get("rowspan", 1)
-    cs = cell.get("colspan", 1)
+
+fig = plt.figure(
+    figsize=(CELL_IN * COLS, CELL_IN * ROWS),
+    facecolor="white",
+    constrained_layout=True,
+)
+gs = GridSpec(ROWS, COLS, figure=fig)
+
+for cfg in _AX_SPECS:
+    row, col = cfg["row"], cfg["col"]
+    rs, cs = cfg["rowspan"], cfg["colspan"]
     ax = fig.add_subplot(gs[row : row + rs, col : col + cs])
     ax.set_facecolor("white")
     for spine in ax.spines.values():
@@ -995,53 +1043,95 @@ for cell in grid["cells"]:
     ax.set_axisbelow(True)
     ax.grid(True, linestyle="-", linewidth=0.45, color="#999999", alpha=0.55)
 
-    data_ids = cell.get("data_ids", [])
-    axis_xlabel = None
-    axis_ylabel = None
+    data_ids = cfg["data_ids"]
+    if not data_ids:
+        ax.set_axis_off()
+        continue
+
+    x_col, y_col = cfg["x_col"], cfg["y_col"]
+    x_label, y_label = cfg["x_label"], cfg["y_label"]
+    line_color = cfg["line_color"]
+    linewidth = cfg["linewidth"]
+    marker = cfg["marker"]
+
     for i, data_id in enumerate(data_ids):
         csv_path = DB_ROOT / "data" / data_id / f"{data_id}.csv"
         df = pd.read_csv(csv_path, comment="#")
-        dmeta = _read_data_meta(data_id)
-        dx = _meta_col(dmeta, "default_x")
-        dy = _meta_col(dmeta, "default_y")
-        if len(data_ids) == 1:
-            if dx and dy and dx in df.columns and dy in df.columns:
-                xs, ys = df[dx], df[dy]
-                axis_xlabel, axis_ylabel = str(dx), str(dy)
-            else:
-                xs, ys = df.iloc[:, 0], df.iloc[:, 1]
+        if x_col is not None and y_col is not None and x_col in df.columns and y_col in df.columns:
+            xs, ys = df[x_col], df[y_col]
         else:
-            xs, ys = df[dx], df[dy]
-            if axis_xlabel is None:
-                axis_xlabel, axis_ylabel = str(dx), str(dy)
+            xs, ys = df.iloc[:, 0], df.iloc[:, 1]
         sty = LINE_STYLES[i % len(LINE_STYLES)]
         pt = max(len(xs), 1)
         step = max(1, pt // 80)
         ax.plot(
             xs,
             ys,
-            color="black",
+            color=line_color,
             linestyle=sty,
-            linewidth=1.2,
-            marker="o",
+            linewidth=linewidth,
+            marker=marker,
             markersize=2.5,
             markevery=slice(0, None, step),
-            markerfacecolor="black",
-            markeredgecolor="black",
+            markerfacecolor=line_color,
+            markeredgecolor=line_color,
         )
 
-    title = " / ".join(_display_label(d) for d in data_ids) if data_ids else f"({row + 1},{col + 1})"
-    ax.set_title(title, fontsize=9, color="black")
-    if axis_xlabel:
-        ax.set_xlabel(axis_xlabel, fontsize=9, color="black")
-    if axis_ylabel:
-        ax.set_ylabel(axis_ylabel, fontsize=9, color="black")
+    ax.set_title(cfg["title"], fontsize=9, color="black")
+    if x_label:
+        ax.set_xlabel(x_label, fontsize=9, color="black")
+    if y_label:
+        ax.set_ylabel(y_label, fontsize=9, color="black")
 
 out = HERE / "output.png"
 fig.savefig(out, dpi=300, facecolor="white")
 plt.close(fig)
 print(f"Saved: {out}")
-'''
+"""
+
+
+def _generate_plot_py(root: Path, rows: int, cols: int, cells: list) -> str:
+    """Emit plot.py: _AX_SPECS only — one JSON-like dict per ax (subplot)."""
+    lines: list[str] = []
+    lines.append(
+        "# plot.py — starting point only; edit constants and plotting logic freely.\n"
+        "# data id SoT: metadata.json → \"source_data\" (this script does not read that file).\n"
+    )
+    lines.append("from pathlib import Path\n\n")
+    lines.append("import pandas as pd\n")
+    lines.append("import matplotlib.pyplot as plt\n")
+    lines.append("from matplotlib.gridspec import GridSpec\n\n")
+    lines.append("HERE = Path(__file__).parent\n")
+    lines.append("DB_ROOT = HERE.parents[1]\n\n")
+    lines.append("# ---- figure layout (edit) ----\n")
+    lines.append(f"ROWS = {rows}\n")
+    lines.append(f"COLS = {cols}\n")
+    lines.append("CELL_IN = 3.0  # inches per grid slot (width & height)\n\n")
+
+    ax_blocks: list[str] = []
+    for c in cells:
+        if not isinstance(c, dict):
+            continue
+        r = int(c["row"])
+        c0 = int(c["col"])
+        rs = int(c.get("rowspan", 1))
+        cs_ = int(c.get("colspan", 1))
+        ids_raw = [str(x).strip() for x in (c.get("data_ids") or []) if str(x).strip()]
+        ids, x_col, y_col, x_lab, y_lab, line_color, linewidth, marker = _plot_cell_hardcode_defaults(root, ids_raw)
+        title = _plot_cell_title(root, ids_raw, r, c0)
+        ax_blocks.append(
+            _format_ax_spec_list_entry(
+                r, c0, rs, cs_, ids, x_col, y_col, x_lab, y_lab, line_color, linewidth, marker, title
+            )
+        )
+
+    lines.append("# ---- per-axis defaults (edit) ----\n")
+    lines.append("# _AX_SPECS … サブプロット（ax）ごとに 1 要素のリスト。JSON に近い辞書を並べただけなので、このリストだけ編集すればよい。\n\n")
+    lines.append("_AX_SPECS = [\n")
+    lines.extend(ax_blocks)
+    lines.append("]\n\n")
+    lines.append(_PLOT_PY_TAIL)
+    return "".join(lines)
 
 
 def _update_json_file(path: Path, updater) -> bool:
