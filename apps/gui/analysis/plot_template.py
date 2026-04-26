@@ -8,6 +8,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from pipeline.datagen import core as datagen_core
+
 
 def collect_source_data_ids_from_cells(cells: list) -> list[str]:
     """Stable unique list of data ids from New Analysis grid cells (row/col order in payload)."""
@@ -23,6 +25,50 @@ def collect_source_data_ids_from_cells(cells: list) -> list[str]:
             seen.add(s)
             out.append(s)
     return out
+
+
+def _strip_text(v: object) -> str:
+    if v is None:
+        return ""
+    return str(v).strip()
+
+
+def _data_fixed_legend_label(meta: dict) -> str:
+    """Legend text from data metadata conditions.fixed (same idea as GUI catalog; not written to analysis metadata)."""
+    cond = datagen_core.metadata_conditions(meta)
+    fixed = cond.get("fixed")
+    if not isinstance(fixed, dict) or not fixed:
+        return ""
+    parts: list[str] = []
+    for key, value in fixed.items():
+        ks = _strip_text(key)
+        vs = _strip_text(value)
+        if ks and vs:
+            parts.append(f"{ks}: {vs}")
+    return ", ".join(parts)
+
+
+def _data_legend_label_for_plot(root: Path, data_id: str) -> str:
+    """Hardcoded series label: prefer conditions.fixed summary; else display_name; else id."""
+    mp = root / "data" / data_id / "metadata.json"
+    meta: dict = {}
+    if mp.exists():
+        try:
+            meta = json.loads(mp.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            meta = {}
+    fixed_label = _data_fixed_legend_label(meta)
+    if fixed_label:
+        return fixed_label
+    raw = meta.get("display_name")
+    if raw is not None and _strip_text(raw):
+        return _strip_text(raw)
+    return str(data_id)
+
+
+def _series_line_colors(n: int) -> list[str]:
+    palette = ("black", "red", "blue")
+    return [palette[i % len(palette)] for i in range(n)]
 
 
 def _meta_default_axis_key(meta: dict, key: str) -> str | None:
@@ -151,6 +197,8 @@ def _format_ax_spec_list_entry(
     linewidth: float,
     marker: str,
     title: str,
+    legend_labels: list[str],
+    line_colors: list[str],
 ) -> str:
     """One element of _AX_SPECS as a JSON-like indented dict (valid Python)."""
     return (
@@ -168,6 +216,8 @@ def _format_ax_spec_list_entry(
         f'        "line_color": {repr(line_color)},\n'
         f'        "linewidth": {repr(linewidth)},\n'
         f'        "marker": {repr(marker)},\n'
+        f'        "legend_labels": {repr(legend_labels)},\n'
+        f'        "line_colors": {repr(line_colors)},\n'
         f'        "title": {repr(title)},\n'
         "    },\n"
     )
@@ -177,6 +227,7 @@ _PLOT_PY_TAIL = """
 # --- 以下の定数・描画ループの役割（必要に応じて編集してください）---
 # LINE_STYLES … 1 つのサブプロットに複数の data 系列を重ねるとき、線種を順に切り替えるためのタプル。
 # for cfg in _AX_SPECS: … ループ … _AX_SPECS の各要素を 1 サブプロットとして、CSV から列を取り出して描画する（サブプロットのタイトルは cfg["title"]）。
+# legend_labels / line_colors … 生成時に各 data の metadata.conditions.fixed などから埋め込んだもの（分析 metadata には書かない）。
 # savefig / plt.close … 画像 output.png を書き出して終了する。
 
 LINE_STYLES = ("-", "--", "-.", ":")
@@ -208,9 +259,13 @@ for cfg in _AX_SPECS:
 
     x_col, y_col = cfg["x_col"], cfg["y_col"]
     x_label, y_label = cfg["x_label"], cfg["y_label"]
-    line_color = cfg["line_color"]
     linewidth = cfg["linewidth"]
     marker = cfg["marker"]
+    legend_labels = cfg.get("legend_labels") or [str(d) for d in data_ids]
+    line_colors = cfg.get("line_colors")
+    if not line_colors or len(line_colors) != len(data_ids):
+        base = cfg.get("line_color", "black")
+        line_colors = [base] * len(data_ids)
 
     for i, data_id in enumerate(data_ids):
         csv_path = DB_ROOT / "data" / data_id / f"{data_id}.csv"
@@ -222,18 +277,24 @@ for cfg in _AX_SPECS:
         sty = LINE_STYLES[i % len(LINE_STYLES)]
         pt = max(len(xs), 1)
         step = max(1, pt // 80)
+        lc = line_colors[i]
+        leg = legend_labels[i] if i < len(legend_labels) else str(data_id)
         ax.plot(
             xs,
             ys,
-            color=line_color,
+            color=lc,
             linestyle=sty,
             linewidth=linewidth,
             marker=marker,
             markersize=2.5,
             markevery=slice(0, None, step),
-            markerfacecolor=line_color,
-            markeredgecolor=line_color,
+            markerfacecolor=lc,
+            markeredgecolor=lc,
+            label=leg,
         )
+
+    if data_ids:
+        ax.legend(fontsize=7, loc="best", frameon=True, framealpha=0.92)
 
     ax.set_title(cfg["title"], fontsize=9, color="black")
     if x_label:
@@ -276,10 +337,26 @@ def generate_plot_py(root: Path, rows: int, cols: int, cells: list) -> str:
         cs_ = int(c.get("colspan", 1))
         ids_raw = [str(x).strip() for x in (c.get("data_ids") or []) if str(x).strip()]
         ids, x_col, y_col, x_lab, y_lab, line_color, linewidth, marker = _plot_cell_hardcode_defaults(root, ids_raw)
+        legend_labels = [_data_legend_label_for_plot(root, did) for did in ids]
+        line_colors = _series_line_colors(len(ids))
         title = _plot_cell_title(root, ids_raw, r, c0)
         ax_blocks.append(
             _format_ax_spec_list_entry(
-                r, c0, rs, cs_, ids, x_col, y_col, x_lab, y_lab, line_color, linewidth, marker, title
+                r,
+                c0,
+                rs,
+                cs_,
+                ids,
+                x_col,
+                y_col,
+                x_lab,
+                y_lab,
+                line_color,
+                linewidth,
+                marker,
+                title,
+                legend_labels,
+                line_colors,
             )
         )
 
