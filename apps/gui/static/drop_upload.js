@@ -3,6 +3,7 @@
 (function () {
   let _getTarget = null;
   let _onUploaded = null;
+  let _uploadOne = null;
   let _overlay = null;
   let _dragDepth = 0;
   let _toast = null;
@@ -31,7 +32,9 @@
     const ov = getOverlay();
     const target = _getTarget ? _getTarget() : null;
     const hint = ov.querySelector("#dropOverlayHint");
-    if (hint) hint.textContent = target && target.id ? target.kind + "/" + target.id + "/uploaded/" : "no record selected";
+    if (hint) {
+      hint.textContent = target && target.id ? `${target.kind}/${target.id}/uploaded/` : "no record selected";
+    }
     ov.classList.add("active");
   }
 
@@ -54,7 +57,7 @@
   }
 
   // ── Upload ────────────────────────────────────────────────────────────────
-  async function uploadFile(file, target) {
+  async function defaultUploadAttachment(file, target) {
     const bytes = await file.arrayBuffer();
     const url = `/api/upload-attachment?kind=${encodeURIComponent(target.kind)}&id=${encodeURIComponent(target.id)}&filename=${encodeURIComponent(file.name)}`;
     const res = await fetch(url, {
@@ -65,6 +68,28 @@
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || res.statusText);
     return data;
+  }
+
+  async function runUploadsForFiles(files) {
+    const target = _getTarget ? _getTarget() : null;
+    if (!target || !target.id) {
+      showToast("No record selected", true);
+      return;
+    }
+    const upload = _uploadOne || defaultUploadAttachment;
+    let ok = 0, fail = 0;
+    for (const file of files) {
+      try {
+        await upload(file, target);
+        ok++;
+      } catch (err) {
+        fail++;
+        console.error("Upload failed:", file.name, err);
+      }
+    }
+    if (fail === 0) showToast(`Uploaded ${ok} file${ok !== 1 ? "s" : ""}`, false);
+    else showToast(`${ok} uploaded, ${fail} failed`, true);
+    if (ok > 0 && _onUploaded) _onUploaded(target);
   }
 
   // ── Drag events ───────────────────────────────────────────────────────────
@@ -91,29 +116,7 @@
     hideOverlay();
     if (!e.dataTransfer || !e.dataTransfer.files.length) return;
     e.preventDefault();
-
-    const target = _getTarget ? _getTarget() : null;
-    if (!target || !target.id) {
-      showToast("No record selected", true);
-      return;
-    }
-
-    const files = Array.from(e.dataTransfer.files);
-    let ok = 0, fail = 0;
-    for (const file of files) {
-      try {
-        await uploadFile(file, target);
-        ok++;
-      } catch (err) {
-        fail++;
-        console.error("Upload failed:", file.name, err);
-      }
-    }
-
-    if (fail === 0) showToast(`Uploaded ${ok} file${ok !== 1 ? "s" : ""}`, false);
-    else showToast(`${ok} uploaded, ${fail} failed`, true);
-
-    if (ok > 0 && _onUploaded) _onUploaded(target);
+    await runUploadsForFiles(Array.from(e.dataTransfer.files));
   });
 
   // ── Open repo path with OS default app (same as /api/open-external) ───────
@@ -145,6 +148,11 @@
     return data.files || [];
   }
 
+  function attachmentNameIsImage(name) {
+    const ext = String(name || "").split(".").pop().toLowerCase();
+    return ["png", "jpg", "jpeg", "gif", "webp", "svg", "heic", "heif", "avif"].includes(ext);
+  }
+
   function renderAttachments(container, files) {
     if (!container) return;
     container.innerHTML = "";
@@ -156,7 +164,7 @@
     for (const f of files) {
       const url = `/api/repo-file?path=${encodeURIComponent(f.path)}`;
       const ext = f.name.split(".").pop().toLowerCase();
-      const isImage = ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext);
+      const isImage = attachmentNameIsImage(f.name);
       const item = document.createElement("div");
       item.className = "attachment-item attachment-item--openable";
       item.setAttribute("role", "button");
@@ -185,14 +193,23 @@
   }
 
   // ── Public API ────────────────────────────────────────────────────────────
-  window.initDropUpload = function ({getTarget, onUploaded}) {
-    _getTarget = getTarget;
-    _onUploaded = onUploaded;
+  /** Run the same upload pipeline as a document drop (for page-local drop zones). */
+  window.labRunDropUploads = function (files) {
+    return runUploadsForFiles(Array.from(files || []));
   };
 
-  window.loadAndRenderAttachments = async function (container, kind, id) {
+  window.initDropUpload = function ({getTarget, onUploaded, uploadFile}) {
+    _getTarget = getTarget;
+    _onUploaded = onUploaded;
+    _uploadOne = typeof uploadFile === "function" ? uploadFile : null;
+  };
+
+  window.loadAndRenderAttachments = async function (container, kind, id, options) {
     if (!container || !kind || !id) { if (container) container.hidden = true; return; }
-    const files = await loadAttachments(kind, id);
+    let files = await loadAttachments(kind, id);
+    if (options && options.hideUploadedImagesForSample && kind === "sample") {
+      files = files.filter(f => !attachmentNameIsImage(f.name));
+    }
     renderAttachments(container, files);
   };
 })();

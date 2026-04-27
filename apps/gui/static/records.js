@@ -6,6 +6,8 @@ const recordInfo = document.getElementById("recordInfo");
 const recordRawdata = document.getElementById("recordRawdata");
 const recordData = document.getElementById("recordData");
 const recordExperiments = document.getElementById("recordExperiments");
+const samplePhotoShell = document.getElementById("samplePhotoShell");
+const sampleUploadedImages = document.getElementById("sampleUploadedImages");
 const recordImageWrap = document.getElementById("recordImageWrap");
 const recordMainImage = document.getElementById("recordMainImage");
 const recordReadme = document.getElementById("recordReadme");
@@ -128,6 +130,56 @@ function memoKind() {
   return pageKind === "samples" ? "sample" : "experiment";
 }
 
+function uploadedGalleryFilenameIsImage(name) {
+  const ext = String(name || "").split(".").pop().toLowerCase();
+  return ["png", "jpg", "jpeg", "gif", "webp", "svg", "heic", "heif", "avif"].includes(ext);
+}
+
+/** Extra previews under the cover image (same dir as sidebar: samples/…/uploaded/). Omits the cover path. */
+async function renderSampleUploadedPhotosColumn(container, sampleId, excludeRepoPath) {
+  if (!container || !sampleId) {
+    if (container) {
+      container.innerHTML = "";
+      container.hidden = true;
+    }
+    return;
+  }
+  const res = await fetch(`/api/attachments?kind=sample&id=${encodeURIComponent(sampleId)}`);
+  const data = await res.json().catch(() => ({files: []}));
+  const files = data.files || [];
+  const exclude = excludeRepoPath || "";
+  const images = files.filter(
+    f => uploadedGalleryFilenameIsImage(f.name) && (!exclude || f.path !== exclude)
+  );
+  container.innerHTML = "";
+  if (!images.length) {
+    container.hidden = true;
+    return;
+  }
+  container.hidden = false;
+  for (const f of images) {
+    const url = `/api/repo-file?path=${encodeURIComponent(f.path)}`;
+    const row = document.createElement("div");
+    row.className = "sample-uploaded-photo-row";
+    const img = document.createElement("img");
+    img.className = "sample-uploaded-photo-img";
+    img.src = url;
+    img.alt = f.name;
+    img.loading = "lazy";
+    img.title = "Open with default app";
+    img.addEventListener("click", () => {
+      if (!window.openRepoFileExternally) return;
+      window.openRepoFileExternally(f.path).catch(err => setStatus(err.message, true));
+    });
+    row.appendChild(img);
+    const cap = document.createElement("div");
+    cap.className = "sample-uploaded-photo-caption";
+    cap.textContent = f.name;
+    row.appendChild(cap);
+    container.appendChild(row);
+  }
+}
+
 // ── Markdown rendering ─────────────────────────────────────────────────────
 // renderMarkdown and renderMathInScope are provided by markdown_render.js
 
@@ -166,7 +218,15 @@ async function selectRecord(id) {
   await renderRepoJsonPanel(recordJson, payload.metadata_path);
   await memoPanel.load({kind: memoKind(), id});
   const attachKind = pageKind === "samples" ? "sample" : "exp";
-  loadAndRenderAttachments(document.getElementById("attachmentsSection"), attachKind, id);
+  const attSec = document.getElementById("attachmentsSection");
+  if (pageKind === "samples") {
+    loadAndRenderAttachments(attSec, attachKind, id, {hideUploadedImagesForSample: true});
+  } else {
+    loadAndRenderAttachments(attSec, attachKind, id);
+  }
+  if (pageKind === "samples" && sampleUploadedImages) {
+    renderSampleUploadedPhotosColumn(sampleUploadedImages, id, payload.main_image || "").catch(() => {});
+  }
 
   renderLinkBlock("rawdataLinkBlock", recordRawdata, (payload.rawdata || []).map(item => ({
     href: `/?path=${encodeURIComponent(item.path)}`,
@@ -192,6 +252,13 @@ async function selectRecord(id) {
       sub: sample.id,
     }));
     renderLinkBlock("experimentLinkBlock", recordExperiments, sampleItems, {label: "SAMPLE"});
+  }
+
+  if (pageKind === "samples" && samplePhotoShell) {
+    samplePhotoShell.hidden = false;
+    samplePhotoShell.classList.toggle("sample-photo-shell--has-image", Boolean(payload.main_image));
+  } else if (samplePhotoShell) {
+    samplePhotoShell.hidden = true;
   }
 
   if (recordImageWrap && recordMainImage) {
@@ -373,6 +440,30 @@ initPaneResize({
 });
 loadRecords().catch(err => setStatus(err.message, true));
 
+if (pageKind === "samples" && samplePhotoShell && window.labRunDropUploads) {
+  samplePhotoShell.addEventListener("dragenter", e => {
+    if (!e.dataTransfer || !e.dataTransfer.types.includes("Files")) return;
+    samplePhotoShell.classList.add("is-drag-over");
+  });
+  samplePhotoShell.addEventListener("dragleave", e => {
+    if (!samplePhotoShell.contains(e.relatedTarget)) {
+      samplePhotoShell.classList.remove("is-drag-over");
+    }
+  });
+  samplePhotoShell.addEventListener("dragover", e => {
+    if (!e.dataTransfer || !e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  });
+  samplePhotoShell.addEventListener("drop", e => {
+    samplePhotoShell.classList.remove("is-drag-over");
+    if (!e.dataTransfer || !e.dataTransfer.files.length) return;
+    e.preventDefault();
+    e.stopPropagation();
+    window.labRunDropUploads(Array.from(e.dataTransfer.files));
+  });
+}
+
 initDropUpload({
   getTarget: () => {
     if (!currentId) return null;
@@ -380,6 +471,10 @@ initDropUpload({
     return {kind, id: currentId};
   },
   onUploaded: (target) => {
-    loadAndRenderAttachments(document.getElementById("attachmentsSection"), target.kind, target.id);
+    if (pageKind === "samples") {
+      selectRecord(target.id).catch(err => setStatus(err.message, true));
+    } else {
+      loadAndRenderAttachments(document.getElementById("attachmentsSection"), target.kind, target.id);
+    }
   },
 });

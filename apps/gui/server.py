@@ -212,10 +212,11 @@ def _save_record_file(root: Path, kind: str, record_id: str, filename: str, slot
         target_path = record_dir / safe_name
     elif kind == "sample":
         record_dir = root / "samples" / record_id
+        # API slot name "image" is historical; files go under uploaded/, not images/.
         if slot == "image":
-            images_dir = record_dir / "images"
-            images_dir.mkdir(exist_ok=True)
-            target_path = images_dir / safe_name
+            upload_dir = record_dir / "uploaded"
+            upload_dir.mkdir(parents=True, exist_ok=True)
+            target_path = upload_dir / safe_name
         else:
             target_path = record_dir / safe_name
     elif kind == "exp":

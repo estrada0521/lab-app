@@ -199,17 +199,50 @@ def _data_entries(root: Path) -> list[dict[str, object]]:
     return [data_entry(root, path) for path in datagen_core.discover_data_files(root)]
 
 
-def _find_main_image(record_dir: Path) -> Path | None:
-    images_dir = record_dir / "images"
-    if not images_dir.is_dir():
+_SAMPLE_UPLOAD_IMAGE_EXTS = frozenset(
+    {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".heic", ".heif", ".avif"}
+)
+_SAMPLE_MAIN_EXT_ORDER = (".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".heic", ".heif", ".avif")
+
+
+def _migrate_sample_legacy_images_to_uploaded(record_dir: Path) -> None:
+    """Sole remaining use of …/images/: one-time move of old files into uploaded/. Safe to delete later."""
+    legacy = record_dir / "images"
+    if not legacy.is_dir():
+        return
+    dest_dir = record_dir / "uploaded"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    for path in sorted(legacy.iterdir()):
+        if not path.is_file():
+            continue
+        dest = dest_dir / path.name
+        if dest.exists():
+            stem, suf = dest.stem, dest.suffix
+            n = 1
+            while dest.exists():
+                dest = dest_dir / f"{stem}_fromimages{n}{suf}"
+                n += 1
+        path.rename(dest)
+    try:
+        for leftover in legacy.iterdir():
+            if leftover.is_dir():
+                return
+        legacy.rmdir()
+    except OSError:
+        pass
+
+
+def _find_sample_main_uploaded_image(record_dir: Path) -> Path | None:
+    """Cover image: samples/…/uploaded/main.<ext> if present, else first image file by name."""
+    upload_dir = record_dir / "uploaded"
+    if not upload_dir.is_dir():
         return None
-    image_exts = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
-    for ext in image_exts:
-        candidate = images_dir / f"main{ext}"
-        if candidate.exists():
+    for ext in _SAMPLE_MAIN_EXT_ORDER:
+        candidate = upload_dir / f"main{ext}"
+        if candidate.is_file():
             return candidate
-    for path in sorted(images_dir.iterdir()):
-        if path.suffix.lower() in image_exts:
+    for path in sorted(upload_dir.iterdir()):
+        if path.is_file() and path.suffix.lower() in _SAMPLE_UPLOAD_IMAGE_EXTS:
             return path
     return None
 
@@ -293,8 +326,9 @@ def sample_detail(root: Path, sample_id: str) -> dict[str, object]:
     metadata = datagen_core.load_json(metadata_path)
     raw_links = [item for item in _raw_entries(root) if item.get("sample") == sample_id]
     data_links = [item for item in _data_entries(root) if item.get("sample") == sample_id]
-    record_dir = root / datagen_core.FLAT_SAMPLES_DIR / sample_id
-    main_image = _find_main_image(record_dir)
+    if record_dir.exists():
+        _migrate_sample_legacy_images_to_uploaded(record_dir)
+    main_image = _find_sample_main_uploaded_image(record_dir)
     exp_links = [item for item in experiment_entries(root) if sample_id in item.get("samples", [item.get("sample", "")])]
     return {
         "id": sample_id,
